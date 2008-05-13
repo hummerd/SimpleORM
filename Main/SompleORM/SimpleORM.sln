@@ -16,13 +16,13 @@ Global
 		SccNumberOfProjects = 3
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = https://tfs04.codeplex.com/
-		SccLocalPath0 = .
-		SccProjectUniqueName1 = CodeGenerator\\DataMapper.csproj
-		SccProjectName1 = CodeGenerator
-		SccLocalPath1 = CodeGenerator
-		SccProjectUniqueName2 = DataMapperTest\\DataMapperTest.csproj
-		SccProjectName2 = DataMapperTest
-		SccLocalPath2 = DataMapperTest
+		SccProjectUniqueName0 = CodeGenerator\\DataMapper.csproj
+		SccProjectName0 = CodeGenerator
+		SccLocalPath0 = CodeGenerator
+		SccProjectUniqueName1 = DataMapperTest\\DataMapperTest.csproj
+		SccProjectName1 = DataMapperTest
+		SccLocalPath1 = DataMapperTest
+		SccLocalPath2 = .
 	EndGlobalSection
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = CodeGenerator.vsmdi
