@@ -1,0 +1,47 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{B724E824-6D3F-492A-A632-77E829111E4F}"
+	ProjectSection(SolutionItems) = preProject
+		CodeGenerator.vsmdi = CodeGenerator.vsmdi
+		localtestrun.testrunconfig = localtestrun.testrunconfig
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataMapper", "CodeGenerator\DataMapper.csproj", "{FD92DD8D-2AAD-460B-8446-8780210ADAE5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataMapperTest", "DataMapperTest\DataMapperTest.csproj", "{CE5FE131-16C4-4C91-9D2F-662A79A7A9CF}"
+EndProject
+Global
+	GlobalSection(TeamFoundationVersionControl) = preSolution
+		SccNumberOfProjects = 3
+		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
+		SccTeamFoundationServer = https://tfs04.codeplex.com/
+		SccLocalPath0 = .
+		SccProjectUniqueName1 = CodeGenerator\\DataMapper.csproj
+		SccProjectName1 = CodeGenerator
+		SccLocalPath1 = CodeGenerator
+		SccProjectUniqueName2 = DataMapperTest\\DataMapperTest.csproj
+		SccProjectName2 = DataMapperTest
+		SccLocalPath2 = DataMapperTest
+	EndGlobalSection
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = CodeGenerator.vsmdi
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE5FE131-16C4-4C91-9D2F-662A79A7A9CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE5FE131-16C4-4C91-9D2F-662A79A7A9CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE5FE131-16C4-4C91-9D2F-662A79A7A9CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE5FE131-16C4-4C91-9D2F-662A79A7A9CF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

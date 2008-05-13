@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8" ?> 
+<MappingDefinition>
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0">
+	<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>
+	<PropetyMapping propertyName="ValuePropNI" dataColumnName="Field1"/>
+	<PropetyMapping propertyName="RefProp"  dataColumnName="Field2"/>
+	<PropetyMapping propertyName="StructProp" dataColumnName="Field3"/>
+	<PropetyMapping propertyName="NullableProp" dataColumnName="Field3"/>
+	<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1"/>
+	<!--<PropetyMapping propertyName="NestedList" dataRelationName="Relation1"/>-->
+  </TypeMapping>
+</MappingDefinition>
+  
