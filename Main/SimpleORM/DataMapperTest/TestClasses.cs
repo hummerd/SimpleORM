@@ -6,6 +6,24 @@ using SimpleORM.Attributes;
 
 namespace DataMapperTest
 {
+	public enum TestEnum
+	{ 
+		None = 0,
+		First = 1,
+		Second = 2
+	}
+
+	public class TesterEnumProp
+	{
+		private TestEnum _EnumProp;
+		[DataColumnMap("Field4")]
+		public TestEnum EnumProp
+		{
+			get { return _EnumProp; }
+			set { _EnumProp = value; }
+		}
+	}
+
 	public class TesterNullableProp
 	{
 		private DateTime? _NullableProp;

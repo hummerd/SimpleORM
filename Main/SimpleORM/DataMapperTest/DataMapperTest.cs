@@ -68,11 +68,12 @@ namespace DataMapperTest
 			_DateTable.Columns.Add(new DataColumn("Field1", typeof(int)));
 			_DateTable.Columns.Add(new DataColumn("Field2", typeof(string)));
 			_DateTable.Columns.Add(new DataColumn("Field3", typeof(DateTime)));
+			_DateTable.Columns.Add(new DataColumn("Field4", typeof(int)));
 			_DateTable.Columns.Add(new DataColumn("ParentId", typeof(int)));
 
-			_DateTable.Rows.Add(72, "Hey!", _CurrentDate = DateTime.Now, 1);
-			_DateTable.Rows.Add(34, "Twice", DateTime.MaxValue, 2);
-			_DateTable.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value);
+			_DateTable.Rows.Add(72, "Hey!", _CurrentDate = DateTime.Now, 1, 1);
+			_DateTable.Rows.Add(34, "Twice", DateTime.MaxValue, 2, 2);
+			_DateTable.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value);
 
 			dsTest.Tables.Add(_DateTable);
 
@@ -124,6 +125,23 @@ namespace DataMapperTest
 
 			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);
 			testContextInstance.WriteLine("Time for creation of one object is: " + new TimeSpan(span.Ticks / rowCount));
+		}
+
+		[TestMethod]
+		public void FillObjectTest_EnumProp()
+		{
+			TesterEnumProp tester = new TesterEnumProp();
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
+
+			if (tester.EnumProp != TestEnum.First)
+				Assert.Fail("FillObjectTest_EnumProp fails.");
+
+			DataMapper.Default.FillObject(_DateTable.Rows[2], tester, 0);
+
+			if (tester.EnumProp != TestEnum.None)
+				Assert.Fail("FillObjectTest_EnumProp with DBNull fails.");
 		}
 
 		[TestMethod]

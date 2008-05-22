@@ -13,9 +13,6 @@ namespace SimpleORM
 {
 	public class DataMapper
 	{
-		protected delegate DataMapAttribute GetPropertyMapping(PropertyInfo prop, int schemeId);
-		protected delegate DataRow DataRowExtractor<T>(T obj);
-
 		protected ModuleBuilder _ModuleBuilder;
 
 		protected readonly Dictionary<Type, Dictionary<int, MethodInfo>> _ExtractorCache = new Dictionary<Type, Dictionary<int, MethodInfo>>();
@@ -605,13 +602,16 @@ namespace SimpleORM
 			ILout.Emit(OpCodes.Stloc_0);
 			ILout.Emit(OpCodes.Ldloc_0);
 			ILout.Emit(OpCodes.Ldsfld, dbNullValue);
+
 			ILout.Emit(OpCodes.Bne_Un, lblElse);
 			ILout.Emit(OpCodes.Ldarg_0);
 			ILout.Emit(OpCodes.Ldloca, loc.LocalIndex);
 			ILout.Emit(OpCodes.Initobj, propType);
 			ILout.Emit(OpCodes.Ldloc, loc.LocalIndex);
 			ILout.EmitCall(OpCodes.Callvirt, setProp, null);
+
 			ILout.Emit(OpCodes.Br, lblEnd);
+			
 			ILout.MarkLabel(lblElse);
 			ILout.Emit(OpCodes.Ldarg_0);
 			ILout.Emit(OpCodes.Ldloc_0);
@@ -1010,10 +1010,7 @@ namespace SimpleORM
 			//else
 			//   newList = mt.NestedList;
 			//
-			//if (newList is List<MyTest>)
-			//   newList.Capacity = drChilds.Length + newList.Count;
-			//
-			//ExtractNested(mt.NestedList, drChilds, 234);
+			//ExtractNested(newList, drChilds, 234);
 			#endregion
 
 			#region IL ildisasm
