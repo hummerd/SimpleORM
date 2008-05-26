@@ -10,7 +10,7 @@ using System.Collections;
 
 namespace SimpleORM
 {
-	internal class PropertySetterGenerator
+	public class PropertySetterGenerator : IPropertySetterGenerator
 	{
 		protected enum SetterType
 		{
@@ -93,6 +93,8 @@ namespace SimpleORM
 			ilGen.MarkLabel(lblElse);
 
 			CreateSetNotNullValue(setterType, ilGen, prop.PropertyType, targetProp);
+
+			ilGen.MarkLabel(lblEnd);
 		}
 
 		protected void CreateExtractNested(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataRelationMapAttribute mapping)
@@ -115,8 +117,8 @@ namespace SimpleORM
 				mapping.MappingName,
 				propType,
 				itemType, 
-				targetClassType.GetMethod("get_" + prop.Name),
 				targetClassType.GetMethod("set_" + prop.Name),
+				targetClassType.GetMethod("get_" + prop.Name),
 				mapping.NestedSchemeId);
 		}
 
@@ -143,13 +145,20 @@ namespace SimpleORM
 			else if (isNullable && columnType != propType.GetGenericArguments()[0])
 				return SetterType.NullableNI;
 			else if (propType.IsValueType && columnType == propType)
-				return SetterType.Value;
+			{
+				if (propType.IsPrimitive)
+					return SetterType.Value;
+				else
+					return SetterType.Struct;
+			}
 			else if (propType.IsValueType && columnType != propType)
 			{
 				if (propType.IsEnum)
 					return SetterType.Enum;
-				else
+				else if (propType.IsPrimitive)
 					return SetterType.ValueNI;
+				else
+					return SetterType.StructNI;
 			}
 			else
 				return SetterType.Reference;

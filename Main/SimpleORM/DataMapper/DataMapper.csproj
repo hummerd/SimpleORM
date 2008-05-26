@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>9.0.30428</ProductVersion>
+    <ProductVersion>9.0.21022</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{FD92DD8D-2AAD-460B-8446-8780210ADAE5}</ProjectGuid>
     <OutputType>Library</OutputType>
@@ -67,6 +67,7 @@
     <Compile Include="Delegates.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="IObjectBuilder.cs" />
+    <Compile Include="IPropertySetterGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PropertySetterGenerator.cs" />
     <Compile Include="StandartLogger.cs" />
