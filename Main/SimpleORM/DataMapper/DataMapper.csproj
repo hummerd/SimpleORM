@@ -63,7 +63,6 @@
     <Compile Include="Attributes\DataMapAttribute.cs" />
     <Compile Include="Attributes\DataRelationMapAttribute.cs" />
     <Compile Include="DataMapper.cs" />
-    <Compile Include="DebugGeneratorCode.cs" />
     <Compile Include="Delegates.cs" />
     <Compile Include="Exception\DataMapperException.cs" />
     <Compile Include="IObjectBuilder.cs" />
