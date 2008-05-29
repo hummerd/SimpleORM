@@ -7,7 +7,7 @@
 	<PropetyMapping propertyName="StructProp" dataColumnName="Field3"/>
 	<PropetyMapping propertyName="NullableProp" dataColumnName="Field3"/>
 	<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1"/>
-	<!--<PropetyMapping propertyName="NestedList" dataRelationName="Relation1"/>-->
+	<!--<PropetyMapping propertyName="NestedList" dataRelationName="Relation1" nestedItemType="DataMapperTest, DataMapperTest.TesterAll" nestedSchemaId="2"/>-->
   </TypeMapping>
 </MappingDefinition>
   

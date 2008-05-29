@@ -7,6 +7,13 @@ namespace SimpleORM.Attributes
 	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 	public class DataColumnMapAttribute : DataMapAttribute
 	{
+		public DataColumnMapAttribute()
+		{ }
+
+		public DataColumnMapAttribute(int schemeId)
+			: base(schemeId)
+		{ }
+
 		public DataColumnMapAttribute(string columnName)
 			: base(columnName)
 		{ }

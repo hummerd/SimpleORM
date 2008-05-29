@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Reflection.Emit;
 using System.Reflection;
 using System.Data;
 using SimpleORM.Attributes;
-using System.Collections;
+using SimpleORM.Exception;
 
 
 namespace SimpleORM
@@ -102,14 +103,14 @@ namespace SimpleORM
 			Type propType = prop.PropertyType;
 
 			if (!typeof(IList).IsAssignableFrom(propType))
-				throw new InvalidOperationException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
+				throw new DataMapperException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
 
 			Type itemType = mapping.ItemType;
 			if (itemType == null)
 				itemType = GetItemType(propType);
 
 			if (itemType == null)
-				throw new InvalidOperationException("Cannot resolve type of items in collection(" + prop.Name + "). " +
+				throw new DataMapperException("Cannot resolve type of items in collection(" + prop.Name + "). " +
 					"Try to set it via ItemType property of DataRelationMapAttribute.");
 
 			GenerateSetNestedProperty(

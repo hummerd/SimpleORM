@@ -8,7 +8,7 @@ namespace SimpleORM
 	{
 		#region IObjectBuilder Members
 
-		public object CreateObject(Type objectType)
+		public virtual object CreateObject(Type objectType)
 		{
 			return Activator.CreateInstance(objectType);
 		}
