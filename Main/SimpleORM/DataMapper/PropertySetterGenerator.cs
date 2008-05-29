@@ -438,19 +438,6 @@ namespace SimpleORM
 			LocalBuilder locRows = ILout.DeclareLocal(typeof(DataRow[]));
 			LocalBuilder loc = ILout.DeclareLocal(propType);
 
-			ILout.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
-			ILout.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
-			ILout.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
-			ILout.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
-			ILout.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
-			ILout.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
-			ILout.Emit(OpCodes.Conv_I4);								//L_000e: conv.i4		
-			ILout.Emit(OpCodes.Ldc_I4_0);								//L_000f: ldc.i4.0 
-
-			ILout.Emit(OpCodes.Bgt, lblElse1);						//L_0010: bgt.s L_0013
-			ILout.Emit(OpCodes.Br, lblEnd);							//L_0012: ret
-
-			ILout.MarkLabel(lblElse1);
 			ILout.Emit(OpCodes.Ldarg_0);								//L_0013: ldarg.0 
 			ILout.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 
@@ -472,6 +459,20 @@ namespace SimpleORM
 			ILout.Emit(OpCodes.Stloc, loc);							//L_003f: stloc.1 
 
 			ILout.MarkLabel(lblAfterFirstIf);
+
+			ILout.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
+			ILout.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
+			ILout.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
+			ILout.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
+			ILout.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
+			ILout.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
+			ILout.Emit(OpCodes.Conv_I4);								//L_000e: conv.i4		
+			ILout.Emit(OpCodes.Ldc_I4_0);								//L_000f: ldc.i4.0 
+
+			ILout.Emit(OpCodes.Bgt, lblElse1);						//L_0010: bgt.s L_0013
+			ILout.Emit(OpCodes.Br, lblEnd);							//L_0012: ret
+
+			ILout.MarkLabel(lblElse1);
 
 			ILout.Emit(OpCodes.Ldarg_2);
 			ILout.Emit(OpCodes.Ldarg_0);								//L_0053: ldarg.0 

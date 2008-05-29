@@ -11,9 +11,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataMapperTest", "DataMappe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataMapper", "DataMapper\DataMapper.csproj", "{FD92DD8D-2AAD-460B-8446-8780210ADAE5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples", "Samples\Samples.csproj", "{4BB3C441-5496-4E62-AA5A-6B6BA93F602D}"
+EndProject
 Global
 	GlobalSection(TeamFoundationVersionControl) = preSolution
-		SccNumberOfProjects = 3
+		SccNumberOfProjects = 4
 		SccEnterpriseProvider = {4CA58AB2-18FA-4F8D-95D4-32DDF27D184C}
 		SccTeamFoundationServer = https://tfs04.codeplex.com/
 		SccLocalPath0 = .
@@ -23,6 +25,9 @@ Global
 		SccProjectUniqueName2 = DataMapperTest\\DataMapperTest.csproj
 		SccProjectName2 = DataMapperTest
 		SccLocalPath2 = DataMapperTest
+		SccProjectUniqueName3 = Samples\\Samples.csproj
+		SccProjectName3 = Samples
+		SccLocalPath3 = Samples
 	EndGlobalSection
 	GlobalSection(TestCaseManagementSettings) = postSolution
 		CategoryFile = SimpleORM.vsmdi
@@ -40,6 +45,10 @@ Global
 		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD92DD8D-2AAD-460B-8446-8780210ADAE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BB3C441-5496-4E62-AA5A-6B6BA93F602D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BB3C441-5496-4E62-AA5A-6B6BA93F602D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BB3C441-5496-4E62-AA5A-6B6BA93F602D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BB3C441-5496-4E62-AA5A-6B6BA93F602D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

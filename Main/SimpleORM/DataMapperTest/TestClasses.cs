@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using SimpleORM.Attributes;
@@ -12,6 +13,7 @@ namespace DataMapperTest
 		First = 1,
 		Second = 2
 	}
+
 
 	public class TesterEnumProp
 	{
