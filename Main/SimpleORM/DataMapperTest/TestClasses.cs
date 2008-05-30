@@ -150,21 +150,18 @@ namespace DataMapperTest
 			set { _TesterList = value; }
 		}
 
-		//private TesterAllBindingCollection _TesterBindingList;
-		//[DataRelationMap("Relation1")]
-		//public TesterAllBindingCollection TesterBindingList
-		//{
-		//   get { return _TesterBindingList; }
-		//   set { _TesterBindingList = value; }
-		//}
+		private TesterAllArrayList _TesterArrayList;
+		[DataRelationMap("Relation1", typeof(TesterAll))]
+		public TesterAllArrayList TesterArrayList
+		{
+			get { return _TesterArrayList; }
+			set { _TesterArrayList = value; }
+		}
+	}
 
-		//private ArrayList _TesterObjectList;
-		//[DataRelationMap("Relation1", typeof(TesterAll))]
-		//public ArrayList TesterObjectList
-		//{
-		//   get { return _TesterObjectList; }
-		//   set { _TesterObjectList = value; }
-		//}
+	public class TesterAllArrayList : ArrayList
+	{
+	
 	}
 
 	public class TesterAllList : List<TesterAll>
