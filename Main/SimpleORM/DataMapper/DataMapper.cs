@@ -129,13 +129,17 @@ namespace SimpleORM
 			//Create new cache only if we manage objects cache
 			//if (clearObjectCache)
 			//   _CreatedObjects = new Dictionary<DataRow, object>();
-
-			MethodInfo extractorMethod = GetSetterMethod(objectType, GetTableFromSchema(reader.GetSchemaTable()), schemeId, _SetterGenerators[typeof(IDataReader)]);
-			if (extractorMethod == null)
-				throw new InvalidOperationException("Can not fill object without mapping definition.");
+			MethodInfo extractorMethod = null;
 
 			while (reader.Read())
 			{
+				if (extractorMethod == null)
+				{
+					extractorMethod = GetSetterMethod(objectType, GetTableFromSchema(reader.GetSchemaTable()), schemeId, _SetterGenerators[typeof(IDataReader)]);
+					if (extractorMethod == null)
+						throw new InvalidOperationException("Can not fill object without mapping definition.");
+				}
+
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
 				CallExtractorMethod(extractorMethod, obj, reader);
