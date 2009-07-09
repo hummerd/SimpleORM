@@ -147,6 +147,43 @@ namespace SimpleORM
 			}
 		}
 
+		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
+			where TObject : class
+		{
+			return FillObject(reader, typeof(TObject), obj, 0) as TObject;
+		}
+
+		public TObject FillObject<TObject>(IDataReader reader, TObject obj, int schemeId)
+			where TObject : class
+		{
+			return FillObject(reader, typeof(TObject), obj, schemeId) as TObject;
+		}
+
+		public object FillObject(IDataReader reader, Type objectType, object obj, int schemeId)
+		{
+			if (reader == null)
+				throw new ArgumentNullException("reader", "Cannot fill object from null.");
+
+			if (objectType == null && obj == null)
+				throw new ArgumentNullException("objectType", "Cannot fill object of unknown type null.");
+
+			if (objectType == null)
+				objectType = obj.GetType();
+
+			MethodInfo extractorMethod = GetSetterMethod(objectType, GetTableFromSchema(reader.GetSchemaTable()), schemeId, _SetterGenerators[typeof(IDataReader)]);
+
+			if (extractorMethod == null)
+				throw new DataMapperException("Can not fill object without mapping definition.");
+
+			//If there is no instance create it
+			if (obj == null)
+				obj = _ObjectBuilder.CreateObject(objectType);
+
+			//Fill object
+			CallExtractorMethod(extractorMethod, obj, record);
+			return obj;
+		}
+
 
 		public void FillObjectList<TObject>(IList objectList, DataView dataCollection)
 			where TObject : class
@@ -208,6 +245,46 @@ namespace SimpleORM
 		}
 
 
+		public TObject FillObject<TObject>(DataRow dataRow, TObject obj)
+			where TObject : class
+		{
+			return FillObject(dataRow, typeof(TObject), obj, 0) as TObject;
+		}
+
+		public TObject FillObject<TObject>(DataRow dataRow, TObject obj, int schemeId)
+			where TObject : class
+		{
+			return FillObject(dataRow, typeof(TObject), obj, schemeId) as TObject;
+		}
+
+		public object FillObject(DataRow dataRow, Type objectType, object obj, int schemeId)
+		{
+			//TO DO: What about schema validation? 
+			//if data table schema changed but some one calls Fill method
+			if (dataRow == null)
+				throw new ArgumentNullException("dataRow", "Cannot fill object from null.");
+
+			if (objectType == null && obj == null)
+				throw new ArgumentNullException("objectType", "Cannot fill object of unknown type null.");
+
+			if (objectType == null)
+				objectType = obj.GetType();
+
+			MethodInfo extractorMethod = GetSetterMethod(objectType, dataRow.Table, schemeId, _SetterGenerators[typeof(DataTable)]);
+
+			if (extractorMethod == null)
+				throw new DataMapperException("Can not fill object without mapping definition.");
+
+			//If there is no instance create it
+			if (obj == null)
+				obj = _ObjectBuilder.CreateObject(objectType);
+
+			//Fill object
+			CallExtractorMethod(extractorMethod, obj, dataRow);
+			return obj;
+		}
+
+
 		protected void FillObjectListInternal<TRowItem>(IList objectList, Type objectType, ICollection dataCollection, int schemeId, DataRowExtractor<TRowItem> rowExtractor, bool clearObjectCache)
 		{
 			if (objectList == null)
@@ -266,47 +343,6 @@ namespace SimpleORM
 			if (clearObjectCache)
 				_CreatedObjects.Clear();
 		}
-
-
-		public TObject FillObject<TObject>(DataRow dataRow, TObject obj)
-			where TObject : class
-		{
-			return FillObject(dataRow, typeof(TObject), obj, 0) as TObject;
-		}
-
-		public TObject FillObject<TObject>(DataRow dataRow, TObject obj, int schemeId)
-			where TObject : class
-		{
-			return FillObject(dataRow, typeof(TObject), obj, schemeId) as TObject;
-		}
-
-		public object FillObject(DataRow dataRow, Type objectType, object obj, int schemeId)
-		{
-			//TO DO: What about schema validation? 
-			//if data table schema changed but some one calls Fill method
-			if (dataRow == null)
-				throw new ArgumentNullException("dataRow", "Cannot fill object from null.");
-
-			if (objectType == null && obj == null)
-				throw new ArgumentNullException("objectType", "Cannot fill object of unknown type null.");
-
-			if (objectType == null)
-				objectType = obj.GetType();
-
-			MethodInfo extractorMethod = GetSetterMethod(objectType, dataRow.Table, schemeId, _SetterGenerators[typeof(DataTable)]);
-
-			if (extractorMethod == null)
-				throw new DataMapperException("Can not fill object without mapping definition.");
-
-			//If there is no instance create it
-			if (obj == null)
-				obj = _ObjectBuilder.CreateObject(objectType);
-
-			//Fill object
-			CallExtractorMethod(extractorMethod, obj, dataRow);
-			return obj;
-		}
-
 
 		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data)
 		{
