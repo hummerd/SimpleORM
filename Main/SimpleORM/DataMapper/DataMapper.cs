@@ -17,7 +17,11 @@ namespace SimpleORM
 	{
 		protected ModuleBuilder _ModuleBuilder;
 
-		protected readonly Dictionary<Type, Dictionary<int, MethodInfo>> _ExtractorCache = new Dictionary<Type, Dictionary<int, MethodInfo>>();
+		protected readonly 
+			Dictionary<Type,		//target object type (Entity type)
+				Dictionary<Type,	//extractor type DataTable or IDataReader
+					Dictionary<int, ExtractInfo>>> _ExtractorCache = new Dictionary<Type, Dictionary<Type, Dictionary<int, ExtractInfo>>>();
+
 		protected Dictionary<DataRow, object> _CreatedObjects;
 
 		protected XmlDocument	_XmlDocument;
@@ -129,20 +133,24 @@ namespace SimpleORM
 			//Create new cache only if we manage objects cache
 			//if (clearObjectCache)
 			//   _CreatedObjects = new Dictionary<DataRow, object>();
-			MethodInfo extractorMethod = null;
+			ExtractInfo extractInfo = null;
 
 			while (reader.Read())
 			{
-				if (extractorMethod == null)
+				if (extractInfo == null)
 				{
-					extractorMethod = GetSetterMethod(objectType, GetTableFromSchema(reader.GetSchemaTable()), schemeId, _SetterGenerators[typeof(IDataReader)]);
-					if (extractorMethod == null)
+					extractInfo = GetSetterMethod(
+						objectType,
+						typeof(IDataReader),
+						GetTableFromSchema(reader.GetSchemaTable()), 
+						schemeId);
+					if (extractInfo == null || extractInfo.FillMethod == null)
 						throw new InvalidOperationException("Can not fill object without mapping definition.");
 				}
 
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
-				CallExtractorMethod(extractorMethod, obj, reader);
+				CallExtractorMethod(extractInfo.FillMethod, obj, reader, null);
 				objectList.Add(obj);
 			}
 		}
@@ -170,9 +178,13 @@ namespace SimpleORM
 			if (objectType == null)
 				objectType = obj.GetType();
 
-			MethodInfo extractorMethod = GetSetterMethod(objectType, GetTableFromSchema(reader.GetSchemaTable()), schemeId, _SetterGenerators[typeof(IDataReader)]);
+			ExtractInfo extractInfo = GetSetterMethod(
+				objectType,
+				typeof(IDataReader),
+				GetTableFromSchema(reader.GetSchemaTable()), 
+				schemeId);
 
-			if (extractorMethod == null)
+			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
 			//If there is no instance create it
@@ -180,7 +192,7 @@ namespace SimpleORM
 				obj = _ObjectBuilder.CreateObject(objectType);
 
 			//Fill object
-			CallExtractorMethod(extractorMethod, obj, record);
+			CallExtractorMethod(extractInfo.FillMethod, obj, reader, null);
 			return obj;
 		}
 
@@ -259,8 +271,6 @@ namespace SimpleORM
 
 		public object FillObject(DataRow dataRow, Type objectType, object obj, int schemeId)
 		{
-			//TO DO: What about schema validation? 
-			//if data table schema changed but some one calls Fill method
 			if (dataRow == null)
 				throw new ArgumentNullException("dataRow", "Cannot fill object from null.");
 
@@ -270,17 +280,23 @@ namespace SimpleORM
 			if (objectType == null)
 				objectType = obj.GetType();
 
-			MethodInfo extractorMethod = GetSetterMethod(objectType, dataRow.Table, schemeId, _SetterGenerators[typeof(DataTable)]);
+			ExtractInfo extractInfo = GetSetterMethod(
+				objectType, 
+				typeof(DataTable),
+				dataRow.Table, 
+				schemeId);
 
-			if (extractorMethod == null)
+			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
+
+			List<int> columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
 
 			//If there is no instance create it
 			if (obj == null)
 				obj = _ObjectBuilder.CreateObject(objectType);
 
 			//Fill object
-			CallExtractorMethod(extractorMethod, obj, dataRow);
+			CallExtractorMethod(extractInfo.FillMethod, obj, dataRow, columnIndexes);
 			return obj;
 		}
 
@@ -300,7 +316,8 @@ namespace SimpleORM
 			if (objectType == null)
 				throw new ArgumentException("Cannot fill object of unknown type null.", "objectType");
 
-			MethodInfo extractorMethod = null;
+			ExtractInfo extractInfo = null;
+			List<int> columnIndexes = null;
 
 			//Trying to increase internal capacity of object container
 			MethodInfo setCapacity = objectList.GetType().GetMethod("set_Capacity", new Type[] { typeof(int) });
@@ -320,12 +337,18 @@ namespace SimpleORM
 				else
 					dataRow = rowExtractor(row);
 
-				if (extractorMethod == null)
+				if (extractInfo == null)
 				{
-					extractorMethod = GetSetterMethod(objectType, dataRow.Table, schemeId, _SetterGenerators[typeof(DataTable)]);
+					extractInfo = GetSetterMethod(
+						objectType,
+						typeof(DataTable),
+						dataRow.Table, 
+						schemeId);
 
-					if (extractorMethod == null)
+					if (extractInfo == null || extractInfo.FillMethod == null)
 						throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+					columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
 				}
 
 				object obj;
@@ -333,7 +356,7 @@ namespace SimpleORM
 				{
 					obj = _ObjectBuilder.CreateObject(objectType);
 					//Fill object
-					CallExtractorMethod(extractorMethod, obj, dataRow);
+					CallExtractorMethod(extractInfo.FillMethod, obj, dataRow, columnIndexes);
 					_CreatedObjects.Add(dataRow, obj);
 				}
 
@@ -344,9 +367,18 @@ namespace SimpleORM
 				_CreatedObjects.Clear();
 		}
 
-		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data)
+		protected List<int> ColumnsIndexes(DataTable table, List<string> columns)
 		{
-			extractorMethod.Invoke(null, new object[] { obj, data, this });
+			List<int> result = new List<int>(columns.Count);
+			for (int i = 0; i < columns.Count; i++)
+				result.Add(table.Columns.IndexOf(columns[i]));
+
+			return result;
+		}
+
+		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data, IList<int> columns)
+		{
+			extractorMethod.Invoke(null, new object[] { obj, data, this, columns });
 		}
 
 		#endregion
@@ -362,31 +394,43 @@ namespace SimpleORM
 		/// <param name="dtSource"></param>
 		/// <param name="schemeId"></param>
 		/// <returns></returns>
-		protected MethodInfo GetSetterMethod(Type objectType, DataTable dtSource, int schemeId, IPropertySetterGenerator methodGenerator)
+		protected ExtractInfo GetSetterMethod(Type objectType, Type extractorType, DataTable dtSource, int schemeId)
 		{
-			MethodInfo extractorMethod;
-			Dictionary<int, MethodInfo> schemeMethods;
+			IPropertySetterGenerator methodGenerator = _SetterGenerators[extractorType];
 
-			bool exists = _ExtractorCache.TryGetValue(objectType, out schemeMethods);
+			ExtractInfo result;
+			Dictionary<Type, Dictionary<int, ExtractInfo>> extractorSchemas;
+			Dictionary<int, ExtractInfo> schemeMethods;
 
-			if (!exists) // If extractor method does not exist for this type
+			bool extractorTypeExists = _ExtractorCache.TryGetValue(objectType, out extractorSchemas);
+
+			if (!extractorTypeExists) // If extractor method does not exist for this type
 			{
-				extractorMethod = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
+				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
 				//Add method to cache
-				schemeMethods = new Dictionary<int, MethodInfo>(2);
-				schemeMethods.Add(schemeId, extractorMethod);
-				_ExtractorCache.Add(objectType, schemeMethods);
+				schemeMethods = new Dictionary<int, ExtractInfo>(2) { {schemeId, result} };
+				_ExtractorCache.Add(
+					objectType,
+					new Dictionary<Type, Dictionary<int, ExtractInfo>>() { { extractorType, schemeMethods } }
+					);
+			}
+			// if extracot of specified type does not exists		
+			else if (!extractorSchemas.TryGetValue(extractorType, out schemeMethods))
+			{
+				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
+				extractorSchemas.Add(
+					extractorType, 
+					new Dictionary<int, ExtractInfo>(2) { {schemeId, result} }
+					);
 			}
 			// If extractor method does not exist for this scheme
-			else if (!schemeMethods.TryGetValue(schemeId, out extractorMethod))
+			else if (!schemeMethods.TryGetValue(schemeId, out result))
 			{
-				extractorMethod = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
-				//Add method to cache
-				schemeMethods.Add(schemeId, extractorMethod);
-				_ExtractorCache.Add(objectType, schemeMethods);
+				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
+				schemeMethods.Add(schemeId, result);
 			}
 
-			return extractorMethod;
+			return result;
 		}
 
 		/// <summary>
@@ -396,26 +440,30 @@ namespace SimpleORM
 		/// <param name="schemeId"></param>
 		/// <param name="dtSource"></param>
 		/// <returns></returns>
-		protected MethodInfo GenerateSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		protected ExtractInfo GenerateSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
 		{
-			MethodInfo extractorMethod = null;
+			ExtractInfo result = new ExtractInfo();
 
 			//Generating Type and method declaration
 			TypeBuilder typeBuilder = CreateAssemblyType(targetClassType);
 			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(targetClassType, typeBuilder);
 			ILGenerator ilGen = methodBuilder.GetILGenerator();
 
-			if (_XmlDocument != null)
-				methodGenerator.GenerateSetterMethod(ilGen, targetClassType, schemeId, dtSource, GetMappingFromXml);
-				//GenerateSetterMethod(ilGen, targetClassType, schemeId, dtSource, GetMappingFromXml);
-
-			//If there is no xml config or type mapping not defined in xml
-			if (extractorMethod == null)
-				methodGenerator.GenerateSetterMethod(ilGen, targetClassType, schemeId, dtSource, GetMappingFromAtt);
-				//GenerateSetterMethod(ilGen, targetClassType, schemeId, dtSource, GetMappingFromAtt);
+			if (_XmlDocument != null && IsXmlMappingExists(typeBuilder, schemeId))
+			{
+				methodGenerator.GenerateSetterMethod(
+					ilGen, targetClassType, schemeId, dtSource, GetMappingFromXml, result);
+			}
+			else //If there is no xml config or type mapping not defined in xml
+			{
+				methodGenerator.GenerateSetterMethod(
+					ilGen, targetClassType, schemeId, dtSource, GetMappingFromAtt, result);
+			}
 
 			typeBuilder.CreateType();
-			return typeBuilder.Assembly.GetType(typeBuilder.FullName).GetMethod("SetProps_" + targetClassType);
+			result.FillMethod = typeBuilder.Assembly.GetType(typeBuilder.FullName).
+				GetMethod("SetProps_" + targetClassType);
+			return result;
 		}
 
 		/// <summary>
@@ -451,11 +499,12 @@ namespace SimpleORM
 		{
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetClassType,
 				MethodAttributes.Public | MethodAttributes.Static,
-				CallingConventions.Standard, typeof(void), new Type[] { targetClassType, typeof(object), GetType() });
+				CallingConventions.Standard, typeof(void), new Type[] { targetClassType, typeof(object), GetType(), typeof(IList<int>) });
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
 			methodBuilder.DefineParameter(2, ParameterAttributes.In, "row");
 			methodBuilder.DefineParameter(3, ParameterAttributes.In, "mapper");
+			methodBuilder.DefineParameter(4, ParameterAttributes.In, "columns");
 
 			return methodBuilder;
 		}
@@ -539,6 +588,25 @@ namespace SimpleORM
 			else
 				return new DataColumnMapAttribute(
 					String.IsNullOrEmpty(att.Value) ? prop.Name : att.Value, schemeId);
+		}
+
+		/// <summary>
+		/// Checks if xml mapping for specified type exists
+		/// </summary>
+		/// <param name="prop"></param>
+		/// <param name="schemeId"></param>
+		/// <returns></returns>
+		protected bool IsXmlMappingExists(Type type, int schemeId)
+		{
+			//Generate XPath Query
+			string qry = "/MappingDefinition/TypeMapping{0}";
+			string typeName = type.Assembly.GetName().Name;
+			typeName = typeName + ", " + type.FullName;
+			string typeClause = "[@typeName = \"" + type + "\" and @schemeId = \"" + schemeId + "\"]";
+			qry = String.Format(qry, typeClause);
+
+			//Looking for node
+			return _XmlDocument.SelectSingleNode(qry) != null;
 		}
 
 		protected DataTable GetTableFromSchema(DataTable schemeTable)

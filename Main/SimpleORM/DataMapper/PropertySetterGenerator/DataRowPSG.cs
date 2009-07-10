@@ -13,6 +13,7 @@ namespace SimpleORM.PropertySetterGenerator
 {
 	public class DataRowPSG : PSGBase, IPropertySetterGenerator
 	{
+		protected static MethodInfo	_GetListItem	= typeof(IList<int>).GetMethod("get_Item", new Type[] { typeof(int) });
 		protected static MethodInfo	_GetRowItem		= typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
 		protected static MethodInfo	_GetChildRows	= typeof(DataRow).GetMethod("GetChildRows", new Type[] { typeof(string) });
 		protected static MethodInfo	_GetType			= typeof(Type).GetMethod("GetTypeFromHandle");
@@ -21,7 +22,13 @@ namespace SimpleORM.PropertySetterGenerator
 		protected static MethodInfo	_SetNested		= typeof(DataMapper).GetMethod("FillObjectListNested");
 		
 
-		public void GenerateSetterMethod(ILGenerator ilGen, Type targetClassType, int schemeId, DataTable schemaTable, GetPropertyMapping getPropertyMapping)
+		public void GenerateSetterMethod(
+			ILGenerator ilGen, 
+			Type targetClassType, 
+			int schemeId, 
+			DataTable schemaTable, 
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo)
 		{
 			/* Setter method algorithm
 			 * 
@@ -43,6 +50,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			PropertyInfo[] props = targetClassType.GetProperties();
 
+			int propIndex = 0;
 			foreach (PropertyInfo prop in props)
 			{
 				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
@@ -50,7 +58,16 @@ namespace SimpleORM.PropertySetterGenerator
 					continue;
 
 				if (mapping is DataColumnMapAttribute)
-					CreateExtractScalar(targetClassType, prop, ilGen, mapping as DataColumnMapAttribute, schemaTable);
+				{
+					CreateExtractScalar(
+						targetClassType, 
+						prop, 
+						ilGen, 
+						mapping as DataColumnMapAttribute, 
+						schemaTable,
+						propIndex++);
+					extractInfo.PropColumns.Add(mapping.MappingName);
+				}
 				else
 					CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
 			}
@@ -59,7 +76,7 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected void CreateExtractScalar(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataColumnMapAttribute mapping, DataTable schemaTable)
+		protected void CreateExtractScalar(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
 		{
 			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
 			if (column < 0)
@@ -70,7 +87,7 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblElse = ilGen.DefineLabel();
 			Label lblEnd = ilGen.DefineLabel();
 
-			GenerateMethodHeader(ilGen, column);
+			GenerateMethodHeader(ilGen, propIndex);
 
 			ilGen.Emit(OpCodes.Bne_Un, lblElse);
 
@@ -111,12 +128,14 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected void GenerateMethodHeader(ILGenerator ilOut, int column)
+		protected void GenerateMethodHeader(ILGenerator ilOut, int propIndex)
 		{
 			ilOut.DeclareLocal(typeof(object));
 			
 			ilOut.Emit(OpCodes.Ldarg_1);
-			ilOut.Emit(OpCodes.Ldc_I4, column);
+			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
 			ilOut.EmitCall(OpCodes.Call, _GetRowItem, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 			ilOut.Emit(OpCodes.Ldloc_0);

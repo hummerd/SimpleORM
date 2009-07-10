@@ -65,6 +65,7 @@
     <Compile Include="DataMapper.cs" />
     <Compile Include="Delegates.cs" />
     <Compile Include="Exception\DataMapperException.cs" />
+    <Compile Include="ExtractInfo.cs" />
     <Compile Include="IObjectBuilder.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -34,7 +34,13 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		public void GenerateSetterMethod(ILGenerator ilGen, Type targetClassType, int schemeId, DataTable schemaTable, GetPropertyMapping getPropertyMapping)
+		public void GenerateSetterMethod(
+			ILGenerator ilGen, 
+			Type targetClassType, 
+			int schemeId, 
+			DataTable schemaTable, 
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo)
 		{
 			PropertyInfo[] props = targetClassType.GetProperties();
 

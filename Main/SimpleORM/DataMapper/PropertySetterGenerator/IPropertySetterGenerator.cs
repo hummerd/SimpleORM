@@ -1,10 +1,18 @@
 ﻿using System;
+using System.Reflection.Emit;
+using System.Data;
 
 
 namespace SimpleORM
 {
 	public interface IPropertySetterGenerator
 	{
-		void GenerateSetterMethod(System.Reflection.Emit.ILGenerator ilGen, Type targetClassType, int schemeId, System.Data.DataTable schemaTable, GetPropertyMapping getPropertyMapping);
+		void GenerateSetterMethod(
+			ILGenerator ilGen, 
+			Type targetClassType, 
+			int schemeId, 
+			DataTable schemaTable, 
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo);
 	}
 }
