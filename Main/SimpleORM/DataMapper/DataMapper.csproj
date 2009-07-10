@@ -59,6 +59,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes\ComplexDataMapAttribute.cs" />
     <Compile Include="Attributes\DataColumnMapAttribute.cs" />
     <Compile Include="Attributes\DataMapAttribute.cs" />
     <Compile Include="Attributes\DataRelationMapAttribute.cs" />

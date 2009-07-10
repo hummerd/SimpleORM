@@ -68,6 +68,51 @@ namespace SimpleORM.PropertySetterGenerator
 						propIndex++);
 					extractInfo.PropColumns.Add(mapping.MappingName);
 				}
+				else if (mapping is ComplexDataMapAttribute)
+				{
+					GenerateExtractComplex();
+				}
+				else
+					CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
+			}
+
+			ilGen.Emit(OpCodes.Ret);
+		}
+
+		public void GenerateComplexSetterMethod(
+			ILGenerator ilGen,
+			Type targetClassType,
+			int schemeId,
+			DataTable schemaTable,
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo)
+		{
+			//if (tar.Prop1 == null)
+			//   tar = objectBuilder.CreateInstance(type);
+
+			//CallExtractorMethod(mi, tar.Prop1, dataRow, columnIndexes);
+
+
+			PropertyInfo[] props = targetClassType.GetProperties();
+
+			int propIndex = 0;
+			foreach (PropertyInfo prop in props)
+			{
+				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
+				if (mapping == null)
+					continue;
+
+				if (mapping is DataColumnMapAttribute)
+				{
+					CreateExtractScalar(
+						targetClassType,
+						prop,
+						ilGen,
+						mapping as DataColumnMapAttribute,
+						schemaTable,
+						propIndex++);
+					extractInfo.PropColumns.Add(mapping.MappingName);
+				}
 				else
 					CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
 			}
@@ -100,6 +145,43 @@ namespace SimpleORM.PropertySetterGenerator
 			CreateSetNotNullValue(setterType, ilGen, prop.PropertyType, targetProp);
 
 			ilGen.MarkLabel(lblEnd);
+		}
+
+		protected void GenerateExtractComplex()
+		{
+			#region Algorithm
+			//PropType obj = mt.Prop1;
+			//if (obj == null)
+			//{
+			//   obj = mapper.ObjectBuilder.CreateObject(typeof(PropType));
+			//   mt.Prop1 = obj;
+			//}
+			//
+			//FillerMethod(obj, data, mapper, columnsXX);
+			#endregion
+			
+
+			//Type propType = prop.PropertyType;
+
+			//if (!typeof(IList).IsAssignableFrom(propType))
+			//   throw new DataMapperException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
+
+			//Type itemType = mapping.ItemType;
+			//if (itemType == null)
+			//   itemType = GetItemType(propType);
+
+			//if (itemType == null)
+			//   throw new DataMapperException("Cannot resolve type of items in collection(" + prop.Name + "). " +
+			//      "Try to set it via ItemType property of DataRelationMapAttribute.");
+
+			//GenerateSetNestedProperty(
+			//   ilGen,
+			//   mapping.MappingName,
+			//   propType,
+			//   itemType,
+			//   targetClassType.GetMethod("set_" + prop.Name),
+			//   targetClassType.GetMethod("get_" + prop.Name),
+			//   mapping.NestedSchemeId);
 		}
 
 		protected void CreateExtractNested(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataRelationMapAttribute mapping)

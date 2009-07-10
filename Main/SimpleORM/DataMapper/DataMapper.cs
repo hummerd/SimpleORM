@@ -433,6 +433,60 @@ namespace SimpleORM
 			return result;
 		}
 
+		protected ExtractInfo GenerateComplexSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		{
+			Stack<ComplexDataMapAttribute> relatedObjects = FindSubObjects(targetClassType, schemeId, null);
+			while (relatedObjects.Count > 0)
+			{
+				ComplexDataMapAttribute dma = relatedObjects.Pop();
+				GenerateSetterMethod(dma.ItemType, dma.NestedSchemeId, dtSource, methodGenerator);
+			}
+
+			return GenerateSetterMethod(targetClassType, schemeId, dtSource, methodGenerator);
+		}
+
+		protected Stack<ComplexDataMapAttribute> FindSubObjects(Type targetClassType, int schemeId, Stack<ComplexDataMapAttribute> result)
+		{
+			if (result == null)
+				result = new Stack<ComplexDataMapAttribute>();
+
+			List<ComplexDataMapAttribute> localComplex = new List<ComplexDataMapAttribute>();
+
+			bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
+			PropertyInfo[] props = targetClassType.GetProperties();
+
+			foreach (PropertyInfo prop in props)
+			{
+				ComplexDataMapAttribute mapping = useXmlMapping ?
+					GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute : 
+					GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+
+				if (mapping == null)
+					continue;
+
+				if (mapping.ItemType == null)
+					mapping.ItemType = prop.PropertyType;
+
+				if (!localComplex.Contains(mapping))
+					localComplex.Add(mapping);
+			}
+
+			foreach (var item in localComplex)
+			{
+				if (result.Contains(item))
+					throw new DataMapperException("Can not extract complex objects with cyclic references");
+				else
+					result.Push(item);
+			}
+
+			foreach (var item in localComplex)
+			{
+				FindSubObjects(item.ItemType, item.NestedSchemeId, result);
+			}
+
+			return result;
+		}
+		
 		/// <summary>
 		/// Generates setter method using xml config or type meta info.
 		/// </summary>
@@ -449,7 +503,7 @@ namespace SimpleORM
 			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(targetClassType, typeBuilder);
 			ILGenerator ilGen = methodBuilder.GetILGenerator();
 
-			if (_XmlDocument != null && IsXmlMappingExists(typeBuilder, schemeId))
+			if (_XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId))
 			{
 				methodGenerator.GenerateSetterMethod(
 					ilGen, targetClassType, schemeId, dtSource, GetMappingFromXml, result);
