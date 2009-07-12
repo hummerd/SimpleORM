@@ -7,9 +7,9 @@ namespace SimpleORM
 {
 	public class ExtractInfo
 	{
-		protected MethodInfo _FillMethod;
-		protected List<string> _PropColumns;
-		protected Dictionary<Type, ExtractInfo> _RelatedInfo;
+		protected MethodInfo				_FillMethod;
+		protected List<string>			_PropColumns;
+		protected List<ExtractInfo>	_SubTypes;
 
 
 		public ExtractInfo()
@@ -30,10 +30,10 @@ namespace SimpleORM
 			set { _PropColumns = value; }
 		}
 
-		public Dictionary<Type, ExtractInfo> RelatedInfo
+		public List<ExtractInfo> SubTypes
 		{
-			get { return _RelatedInfo; }
-			set { _RelatedInfo = value; }
+			get { return _SubTypes; }
+			set { _SubTypes = value; }
 		}
 	}
 }

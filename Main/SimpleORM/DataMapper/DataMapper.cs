@@ -433,59 +433,56 @@ namespace SimpleORM
 			return result;
 		}
 
-		protected ExtractInfo GenerateComplexSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
-		{
-			Stack<ComplexDataMapAttribute> relatedObjects = FindSubObjects(targetClassType, schemeId, null);
-			while (relatedObjects.Count > 0)
-			{
-				ComplexDataMapAttribute dma = relatedObjects.Pop();
-				GenerateSetterMethod(dma.ItemType, dma.NestedSchemeId, dtSource, methodGenerator);
-			}
+		//protected ExtractInfo GenerateComplexSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		//{
+		//   Stack<ComplexDataMapAttribute> relatedObjects = FindSubObjects(targetClassType, schemeId, null);
+		//   while (relatedObjects.Count > 0)
+		//   {
+		//      ComplexDataMapAttribute dma = relatedObjects.Pop();
+		//      GenerateSetterMethod(dma.ItemType, dma.NestedSchemeId, dtSource, methodGenerator);
+		//   }
 
-			return GenerateSetterMethod(targetClassType, schemeId, dtSource, methodGenerator);
-		}
+		//   return GenerateSetterMethod(targetClassType, schemeId, dtSource, methodGenerator);
+		//}
 
-		protected Stack<ComplexDataMapAttribute> FindSubObjects(Type targetClassType, int schemeId, Stack<ComplexDataMapAttribute> result)
-		{
-			if (result == null)
-				result = new Stack<ComplexDataMapAttribute>();
+		//protected Stack<ComplexDataMapAttribute> FindSubObjects(Type targetClassType, int schemeId, Stack<ComplexDataMapAttribute> result)
+		//{
+		//   if (result == null)
+		//      result = new Stack<ComplexDataMapAttribute>();
 
-			List<ComplexDataMapAttribute> localComplex = new List<ComplexDataMapAttribute>();
+		//   List<ComplexDataMapAttribute> localComplex = new List<ComplexDataMapAttribute>();
 
-			bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
-			PropertyInfo[] props = targetClassType.GetProperties();
+		//   bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
+		//   PropertyInfo[] props = targetClassType.GetProperties();
 
-			foreach (PropertyInfo prop in props)
-			{
-				ComplexDataMapAttribute mapping = useXmlMapping ?
-					GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute : 
-					GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+		//   foreach (PropertyInfo prop in props)
+		//   {
+		//      ComplexDataMapAttribute mapping = useXmlMapping ?
+		//         GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute : 
+		//         GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
 
-				if (mapping == null)
-					continue;
+		//      if (mapping == null)
+		//         continue;
 
-				if (mapping.ItemType == null)
-					mapping.ItemType = prop.PropertyType;
+		//      if (mapping.ItemType == null)
+		//         mapping.ItemType = prop.PropertyType;
 
-				if (!localComplex.Contains(mapping))
-					localComplex.Add(mapping);
-			}
+		//      //if (!localComplex.Contains(mapping))
+		//      //   localComplex.Add(mapping);
+		//   }
 
-			foreach (var item in localComplex)
-			{
-				if (result.Contains(item))
-					throw new DataMapperException("Can not extract complex objects with cyclic references");
-				else
-					result.Push(item);
-			}
+		//   foreach (var item in localComplex)
+		//      if (result.Contains(item))
+		//         throw new DataMapperException("Can not extract complex objects with cyclic references");
 
-			foreach (var item in localComplex)
-			{
-				FindSubObjects(item.ItemType, item.NestedSchemeId, result);
-			}
+		//   foreach (var item in localComplex)
+		//      result.Push(item);
 
-			return result;
-		}
+		//   foreach (var item in localComplex)
+		//      FindSubObjects(item.ItemType, item.NestedSchemeId, result);
+
+		//   return result;
+		//}
 		
 		/// <summary>
 		/// Generates setter method using xml config or type meta info.
@@ -497,6 +494,8 @@ namespace SimpleORM
 		protected ExtractInfo GenerateSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
 		{
 			ExtractInfo result = new ExtractInfo();
+
+			result.SubTypes = GetSubTypes(targetClassType, schemeId, dtSource, methodGenerator);
 
 			//Generating Type and method declaration
 			TypeBuilder typeBuilder = CreateAssemblyType(targetClassType);
@@ -517,6 +516,36 @@ namespace SimpleORM
 			typeBuilder.CreateType();
 			result.FillMethod = typeBuilder.Assembly.GetType(typeBuilder.FullName).
 				GetMethod("SetProps_" + targetClassType);
+			return result;
+		}
+
+		protected List<ExtractInfo> GetSubTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		{
+			List<ExtractInfo> result = new List<ExtractInfo>();
+
+			bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
+			PropertyInfo[] props = targetClassType.GetProperties();
+
+			foreach (PropertyInfo prop in props)
+			{
+				ComplexDataMapAttribute mapping = useXmlMapping ?
+					GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute :
+					GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+
+				if (mapping == null)
+					continue;
+
+				if (mapping.ItemType == null)
+					mapping.ItemType = prop.PropertyType;
+
+				result.Add(
+					GenerateSetterMethod(
+						mapping.ItemType, 
+						mapping.NestedSchemeId, 
+						dtSource, 
+						methodGenerator));
+			}
+
 			return result;
 		}
 
