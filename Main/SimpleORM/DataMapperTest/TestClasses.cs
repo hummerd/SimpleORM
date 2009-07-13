@@ -14,6 +14,59 @@ namespace DataMapperTest
 		Second = 2
 	}
 
+	public class TesterComplexProp2
+	{
+		private TesterComplexProp _CmplProp;
+		[ComplexDataMap()]
+		public TesterComplexProp CmplProp
+		{
+			get { return _CmplProp; }
+			set { _CmplProp = value; }
+		}
+
+		private TesterStructProp _CmplProp2;
+		[ComplexDataMap()]
+		public TesterStructProp CmplProp2
+		{
+			get { return _CmplProp2; }
+			set { _CmplProp2 = value; }
+		}
+	}
+
+	public class TesterComplexProp
+	{
+		private int _ValueProp;
+		[DataColumnMapAttribute("Field1")]
+		public int ValueProp
+		{
+			get { return _ValueProp; }
+			set { _ValueProp = value; }
+		}
+
+		private TestEnum _EnumProp;
+		[DataColumnMap("Field4")]
+		public TestEnum EnumProp
+		{
+			get { return _EnumProp; }
+			set { _EnumProp = value; }
+		}
+
+		private TesterValueProp _CmplProp1;
+		[ComplexDataMap()]
+		public TesterValueProp CmplProp1
+		{
+			get { return _CmplProp1; }
+			set { _CmplProp1 = value; }
+		}
+
+		private TesterStructProp _CmplProp2;
+		[ComplexDataMap()]
+		public TesterStructProp CmplProp2
+		{
+			get { return _CmplProp2; }
+			set { _CmplProp2 = value; }
+		}
+	}
 
 	public class TesterEnumProp
 	{

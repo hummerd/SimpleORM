@@ -13,115 +13,34 @@ namespace SimpleORM.PropertySetterGenerator
 {
 	public class DataRowPSG : PSGBase, IPropertySetterGenerator
 	{
-		protected static MethodInfo	_GetListItem	= typeof(IList<int>).GetMethod("get_Item", new Type[] { typeof(int) });
+		
 		protected static MethodInfo	_GetRowItem		= typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
 		protected static MethodInfo	_GetChildRows	= typeof(DataRow).GetMethod("GetChildRows", new Type[] { typeof(string) });
-		protected static MethodInfo	_GetType			= typeof(Type).GetMethod("GetTypeFromHandle");
-		protected static MethodInfo	_ChangeType		= typeof(Convert).GetMethod("ChangeType", new Type[] { typeof(object), typeof(Type) });
+		
 		protected static FieldInfo		_DBNullValue	= typeof(DBNull).GetField("Value");
 		protected static MethodInfo	_SetNested		= typeof(DataMapper).GetMethod("FillObjectListNested");
 		
 
 		public void GenerateSetterMethod(
-			ILGenerator ilGen, 
+			ILGenerator ilOut, 
 			Type targetClassType, 
 			int schemeId, 
 			DataTable schemaTable, 
 			GetPropertyMapping getPropertyMapping,
 			ExtractInfo extractInfo)
 		{
-			/* Setter method algorithm
-			 * 
-			 * object val = dr[0];
-			 * if (val == DBNull.Value) 
-			 *		obj.Prop1 = default(int);
-			 *	else
-			 *		obj.Prop1 = (int)val;
-			 * 
-			 * val = dr[1];
-			 * if (val == DBNull.Value) 
-			 *		obj.Prop2 = default(string);
-			 *	else
-			 *		obj.Prop2 = (string)val;
-			 * 
-			 * ExtractNested(obj.Prop4, ..., ...);
-			 * 
-			 */
-
-			PropertyInfo[] props = targetClassType.GetProperties();
-
-			int propIndex = 0;
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping is DataColumnMapAttribute)
-				{
-					CreateExtractScalar(
-						targetClassType, 
-						prop, 
-						ilGen, 
-						mapping as DataColumnMapAttribute, 
-						schemaTable,
-						propIndex++);
-					extractInfo.PropColumns.Add(mapping.MappingName);
-				}
-				else if (mapping is ComplexDataMapAttribute)
-				{
-					GenerateExtractComplex();
-				}
-				else
-					CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
-			}
-
-			ilGen.Emit(OpCodes.Ret);
-		}
-
-		public void GenerateComplexSetterMethod(
-			ILGenerator ilGen,
-			Type targetClassType,
-			int schemeId,
-			DataTable schemaTable,
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo)
-		{
-			//if (tar.Prop1 == null)
-			//   tar = objectBuilder.CreateInstance(type);
-
-			//CallExtractorMethod(mi, tar.Prop1, dataRow, columnIndexes);
-
-
-			PropertyInfo[] props = targetClassType.GetProperties();
-
-			int propIndex = 0;
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping is DataColumnMapAttribute)
-				{
-					CreateExtractScalar(
-						targetClassType,
-						prop,
-						ilGen,
-						mapping as DataColumnMapAttribute,
-						schemaTable,
-						propIndex++);
-					extractInfo.PropColumns.Add(mapping.MappingName);
-				}
-				else
-					CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
-			}
-
-			ilGen.Emit(OpCodes.Ret);
+			GenerateSetterMethod(
+				ilOut,
+				targetClassType,
+				schemeId,
+				schemaTable,
+				getPropertyMapping,
+				extractInfo,
+				true);
 		}
 
 
-		protected void CreateExtractScalar(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
+		protected override void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
 		{
 			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
 			if (column < 0)
@@ -129,62 +48,25 @@ namespace SimpleORM.PropertySetterGenerator
 
 			MethodInfo targetProp = targetClassType.GetMethod("set_" + prop.Name);
 
-			Label lblElse = ilGen.DefineLabel();
-			Label lblEnd = ilGen.DefineLabel();
+			Label lblElse = ilOut.DefineLabel();
+			Label lblEnd = ilOut.DefineLabel();
 
-			GenerateMethodHeader(ilGen, propIndex);
+			GenerateMethodHeader(ilOut, propIndex);
 
-			ilGen.Emit(OpCodes.Bne_Un, lblElse);
+			ilOut.Emit(OpCodes.Bne_Un, lblElse);
 
 			SetterType setterType = GetSetterType(prop, schemaTable.Columns[column].DataType);
-			CreateSetNullValue(setterType, ilGen, prop.PropertyType, targetProp);
+			CreateSetNullValue(setterType, ilOut, prop.PropertyType, targetProp);
 
-			ilGen.Emit(OpCodes.Br, lblEnd);
-			ilGen.MarkLabel(lblElse);
+			ilOut.Emit(OpCodes.Br, lblEnd);
+			ilOut.MarkLabel(lblElse);
 
-			CreateSetNotNullValue(setterType, ilGen, prop.PropertyType, targetProp);
+			CreateSetNotNullValue(ilOut, setterType, prop.PropertyType, targetProp);
 
-			ilGen.MarkLabel(lblEnd);
+			ilOut.MarkLabel(lblEnd);
 		}
 
-		protected void GenerateExtractComplex()
-		{
-			#region Algorithm
-			//PropType obj = mt.Prop1;
-			//if (obj == null)
-			//{
-			//   obj = mapper.ObjectBuilder.CreateObject(typeof(PropType));
-			//   mt.Prop1 = obj;
-			//}
-			//
-			//FillerMethod(obj, data, mapper, columnsXX);
-			#endregion
-			
-
-			//Type propType = prop.PropertyType;
-
-			//if (!typeof(IList).IsAssignableFrom(propType))
-			//   throw new DataMapperException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
-
-			//Type itemType = mapping.ItemType;
-			//if (itemType == null)
-			//   itemType = GetItemType(propType);
-
-			//if (itemType == null)
-			//   throw new DataMapperException("Cannot resolve type of items in collection(" + prop.Name + "). " +
-			//      "Try to set it via ItemType property of DataRelationMapAttribute.");
-
-			//GenerateSetNestedProperty(
-			//   ilGen,
-			//   mapping.MappingName,
-			//   propType,
-			//   itemType,
-			//   targetClassType.GetMethod("set_" + prop.Name),
-			//   targetClassType.GetMethod("get_" + prop.Name),
-			//   mapping.NestedSchemeId);
-		}
-
-		protected void CreateExtractNested(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataRelationMapAttribute mapping)
+		protected override void CreateExtractNested(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataRelationMapAttribute mapping)
 		{
 			Type propType = prop.PropertyType;
 
@@ -200,7 +82,7 @@ namespace SimpleORM.PropertySetterGenerator
 					"Try to set it via ItemType property of DataRelationMapAttribute.");
 
 			GenerateSetNestedProperty(
-				ilGen,
+				ilOut,
 				mapping.MappingName,
 				propType,
 				itemType, 
@@ -209,15 +91,19 @@ namespace SimpleORM.PropertySetterGenerator
 				mapping.NestedSchemeId);
 		}
 
-
 		protected void GenerateMethodHeader(ILGenerator ilOut, int propIndex)
 		{
 			ilOut.DeclareLocal(typeof(object));
-			
+
 			ilOut.Emit(OpCodes.Ldarg_1);
+
 			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldind_I4);
+			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
 			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
 			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+
 			ilOut.EmitCall(OpCodes.Call, _GetRowItem, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
@@ -225,40 +111,40 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected void CreateSetNotNullValue(SetterType setterType, ILGenerator ilGen, Type propType, MethodInfo setProp)
+		protected void CreateSetNotNullValue(ILGenerator ilOut, SetterType setterType, Type propType, MethodInfo setProp)
 		{
 			switch (setterType)
 			{
 				case SetterType.Enum:
-					GenerateSetUnboxedToSubType(ilGen, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
 					break;
 
 				case SetterType.Value:
-					GenerateSetUnboxedToSubType(ilGen, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
 					break;
 
 				case SetterType.ValueNI:
-					GenerateSetConverted(ilGen, propType, setProp);
+					GenerateSetConverted(ilOut, propType, setProp);
 					break;
 
 				case SetterType.Struct:
-					GenerateSetUnboxedToSubType(ilGen, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
 					break;
 
 				case SetterType.StructNI:
-					GenerateSetConverted(ilGen, propType, setProp);
+					GenerateSetConverted(ilOut, propType, setProp);
 					break;
 
 				case SetterType.Nullable:
-					GenerateSetUnboxedToSubType(ilGen, propType, setProp, propType.GetGenericArguments()[0]);
+					GenerateSetUnboxedToSubType(ilOut, propType, setProp, propType.GetGenericArguments()[0]);
 					break;
 
 				case SetterType.NullableNI:
-					GenerateConvertedToSubType(ilGen, propType, setProp, propType.GetGenericArguments()[0]);
+					GenerateConvertedToSubType(ilOut, propType, setProp, propType.GetGenericArguments()[0]);
 					break;
 
 				case SetterType.Reference:
-					GenerateSetRef(ilGen, propType, setProp);
+					GenerateSetRef(ilOut, propType, setProp);
 					break;
 			}
 		}
@@ -283,9 +169,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			return type.GetGenericArguments()[0];
 		}
-
-		
-
+				
 		protected void GenerateConvertedToSubType(ILGenerator ilOut, Type propType, MethodInfo setProp, Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
@@ -344,7 +228,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="itemType"></param>
 		/// <param name="nestedSchemaId"></param>
 		/// <param name="setNested"></param>
-		protected void GenerateSetNestedProperty(ILGenerator ILout, string relationName, Type propType, Type itemType, MethodInfo setProp, MethodInfo getProp, int nestedSchemaId)
+		protected void GenerateSetNestedProperty(ILGenerator ilOut, string relationName, Type propType, Type itemType, MethodInfo setProp, MethodInfo getProp, int nestedSchemaId)
 		{
 			#region Algorithm
 			//DataRow[] drChilds = dr.GetChildRows("RelationName");
@@ -428,59 +312,59 @@ namespace SimpleORM.PropertySetterGenerator
 			if (itemType == null)
 				itemType = propType.GetGenericArguments()[0];
 
-			Label lblElse1 = ILout.DefineLabel();
-			Label lblElse2 = ILout.DefineLabel();
-			Label lblAfterFirstIf = ILout.DefineLabel();
-			Label lblEnd = ILout.DefineLabel();
+			Label lblElse1 = ilOut.DefineLabel();
+			Label lblElse2 = ilOut.DefineLabel();
+			Label lblAfterFirstIf = ilOut.DefineLabel();
+			Label lblEnd = ilOut.DefineLabel();
 
-			LocalBuilder locRows = ILout.DeclareLocal(typeof(DataRow[]));
-			LocalBuilder loc = ILout.DeclareLocal(propType);
+			LocalBuilder locRows = ilOut.DeclareLocal(typeof(DataRow[]));
+			LocalBuilder loc = ilOut.DeclareLocal(propType);
 
-			ILout.Emit(OpCodes.Ldarg_0);								//L_0013: ldarg.0 
-			ILout.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Ldarg_0);								//L_0013: ldarg.0 
+			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 
-			ILout.Emit(OpCodes.Brtrue, lblElse2);					//L_0019: brtrue.s L_0039
-			ILout.Emit(OpCodes.Ldtoken, propType);					//L_001b: ldtoken [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
-			ILout.EmitCall(OpCodes.Call, _GetType, null);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-			ILout.EmitCall(OpCodes.Call, createInst, null);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
-			ILout.Emit(OpCodes.Castclass, propType);				//L_002a: castclass [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
-			ILout.Emit(OpCodes.Stloc, loc);							//L_002f: stloc.1 
-			ILout.Emit(OpCodes.Ldarg_0);								//L_0030: ldarg.0 
-			ILout.Emit(OpCodes.Ldloc, loc);							//L_0031: ldloc.1 
-			ILout.EmitCall(OpCodes.Callvirt, setProp, null);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
+			ilOut.Emit(OpCodes.Brtrue, lblElse2);					//L_0019: brtrue.s L_0039
+			ilOut.Emit(OpCodes.Ldtoken, propType);					//L_001b: ldtoken [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
+			ilOut.EmitCall(OpCodes.Call, _GetType, null);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+			ilOut.EmitCall(OpCodes.Call, createInst, null);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
+			ilOut.Emit(OpCodes.Castclass, propType);				//L_002a: castclass [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
+			ilOut.Emit(OpCodes.Stloc, loc);							//L_002f: stloc.1 
+			ilOut.Emit(OpCodes.Ldarg_0);								//L_0030: ldarg.0 
+			ilOut.Emit(OpCodes.Ldloc, loc);							//L_0031: ldloc.1 
+			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
 
-			ILout.Emit(OpCodes.Br, lblAfterFirstIf);				//L_0037: br.s L_0040
+			ilOut.Emit(OpCodes.Br, lblAfterFirstIf);				//L_0037: br.s L_0040
 
-			ILout.MarkLabel(lblElse2);
-			ILout.Emit(OpCodes.Ldarg_0);								//L_0039: ldarg.0 
-			ILout.EmitCall(OpCodes.Callvirt, getProp, null);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
-			ILout.Emit(OpCodes.Stloc, loc);							//L_003f: stloc.1 
+			ilOut.MarkLabel(lblElse2);
+			ilOut.Emit(OpCodes.Ldarg_0);								//L_0039: ldarg.0 
+			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Stloc, loc);							//L_003f: stloc.1 
 
-			ILout.MarkLabel(lblAfterFirstIf);
+			ilOut.MarkLabel(lblAfterFirstIf);
 
-			ILout.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
-			ILout.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
-			ILout.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
-			ILout.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
-			ILout.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
-			ILout.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
-			ILout.Emit(OpCodes.Conv_I4);								//L_000e: conv.i4		
-			ILout.Emit(OpCodes.Ldc_I4_0);								//L_000f: ldc.i4.0 
+			ilOut.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
+			ilOut.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
+			ilOut.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
+			ilOut.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
+			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
+			ilOut.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
+			ilOut.Emit(OpCodes.Conv_I4);								//L_000e: conv.i4		
+			ilOut.Emit(OpCodes.Ldc_I4_0);								//L_000f: ldc.i4.0 
 
-			ILout.Emit(OpCodes.Bgt, lblElse1);						//L_0010: bgt.s L_0013
-			ILout.Emit(OpCodes.Br, lblEnd);							//L_0012: ret
+			ilOut.Emit(OpCodes.Bgt, lblElse1);						//L_0010: bgt.s L_0013
+			ilOut.Emit(OpCodes.Br, lblEnd);							//L_0012: ret
 
-			ILout.MarkLabel(lblElse1);
+			ilOut.MarkLabel(lblElse1);
 
-			ILout.Emit(OpCodes.Ldarg_2);
-			ILout.Emit(OpCodes.Ldarg_0);								//L_0053: ldarg.0 
-			ILout.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
-			ILout.Emit(OpCodes.Ldtoken, itemType);
-			ILout.EmitCall(OpCodes.Call, _GetType, null);
-			ILout.Emit(OpCodes.Ldloc, locRows);						//L_0059: ldloc.0 
-			ILout.Emit(OpCodes.Ldc_I4, nestedSchemaId);			//L_005a: ldc.i4 0xea
-			ILout.EmitCall(OpCodes.Callvirt, _SetNested, null);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
-			ILout.MarkLabel(lblEnd);									//L_0064: ret 
+			ilOut.Emit(OpCodes.Ldarg_2);
+			ilOut.Emit(OpCodes.Ldarg_0);								//L_0053: ldarg.0 
+			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Ldtoken, itemType);
+			ilOut.EmitCall(OpCodes.Call, _GetType, null);
+			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_0059: ldloc.0 
+			ilOut.Emit(OpCodes.Ldc_I4, nestedSchemaId);			//L_005a: ldc.i4 0xea
+			ilOut.EmitCall(OpCodes.Callvirt, _SetNested, null);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
+			ilOut.MarkLabel(lblEnd);									//L_0064: ret 
 		}
 	}
 }

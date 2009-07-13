@@ -14,8 +14,7 @@ namespace SimpleORM.PropertySetterGenerator
 		protected static Dictionary<Type, MethodInfo> _ReaderGetMethods = new Dictionary<Type,MethodInfo>();
 		protected static MethodInfo _GetValue = typeof(IDataRecord).GetMethod("GetValue");
 		protected static MethodInfo _IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
-		protected static MethodInfo _GetType = typeof(Type).GetMethod("GetTypeFromHandle");
-		protected static MethodInfo _ChangeType = typeof(Convert).GetMethod("ChangeType", new Type[] { typeof(object), typeof(Type) });
+		
 		
 		//protected static MethodInfo _SetNested = typeof(DataMapper).GetMethod("FillObjectListNested");
 
@@ -35,41 +34,25 @@ namespace SimpleORM.PropertySetterGenerator
 
 
 		public void GenerateSetterMethod(
-			ILGenerator ilGen, 
+			ILGenerator ilOut, 
 			Type targetClassType, 
 			int schemeId, 
 			DataTable schemaTable, 
 			GetPropertyMapping getPropertyMapping,
 			ExtractInfo extractInfo)
 		{
-			PropertyInfo[] props = targetClassType.GetProperties();
-
-			/* Setter method algorithm
-			 * 
-			 *if (dr.IsDBNull(0))
-		    *		obj.Prop1 = default(int);
-			 *else
-			 *		obj.Prop1 = dr.GetInt32(0);
-			 */
-
-
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping is DataColumnMapAttribute)
-					CreateExtractScalar(targetClassType, prop, ilGen, mapping as DataColumnMapAttribute, schemaTable);
-				//else
-				//   CreateExtractNested(targetClassType, prop, ilGen, mapping as DataRelationMapAttribute);
-			}
-
-			ilGen.Emit(OpCodes.Ret);
+			GenerateSetterMethod(
+				ilOut, 
+				targetClassType, 
+				schemeId, 
+				schemaTable, 
+				getPropertyMapping,
+				extractInfo,
+				false);
 		}
 
 
-		protected void CreateExtractScalar(Type targetClassType, PropertyInfo prop, ILGenerator ilGen, DataColumnMapAttribute mapping, DataTable schemaTable)
+		protected override void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
 		{
 			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
 			if (column < 0)
@@ -77,49 +60,71 @@ namespace SimpleORM.PropertySetterGenerator
 
 			MethodInfo targetProp = targetClassType.GetMethod("set_" + prop.Name);
 
-			Label lblElse = ilGen.DefineLabel();
-			Label lblEnd = ilGen.DefineLabel();
+			Label lblElse = ilOut.DefineLabel();
+			Label lblEnd = ilOut.DefineLabel();
 
-			GenerateMethodHeader(ilGen, column);
+			GenerateMethodHeader(ilOut, propIndex);
 
-			ilGen.Emit(OpCodes.Brfalse, lblElse);
+			ilOut.Emit(OpCodes.Brfalse, lblElse);
 
 			Type dbType = schemaTable.Columns[column].DataType;
 			SetterType setterType = GetSetterType(prop, dbType);
-			CreateSetNullValue(setterType, ilGen, prop.PropertyType, targetProp);
+			CreateSetNullValue(setterType, ilOut, prop.PropertyType, targetProp);
 
-			ilGen.Emit(OpCodes.Br, lblEnd);
-			ilGen.MarkLabel(lblElse);
+			ilOut.Emit(OpCodes.Br, lblEnd);
+			ilOut.MarkLabel(lblElse);
 
 			bool readerMethodExist = _ReaderGetMethods.ContainsKey(dbType);
 			bool useDirectSet = readerMethodExist && prop.PropertyType == dbType;
 
 			if (setterType == SetterType.Nullable && prop.PropertyType.GetGenericArguments()[0] == dbType)
-				GenerateSetDirect(ilGen, column, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], dbType);
+				GenerateSetDirect(ilOut, propIndex, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], dbType);
 			else if (setterType == SetterType.NullableNI)
-				CreateSetNotNullValueFromSubType(ilGen, column, targetProp, prop.PropertyType, prop.PropertyType.GetGenericArguments()[0]);
+				CreateSetNotNullValueFromSubType(ilOut, propIndex, targetProp, prop.PropertyType, prop.PropertyType.GetGenericArguments()[0]);
 			else if (useDirectSet)
-				GenerateSetDirect(ilGen, column, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], null);
+				GenerateSetDirect(ilOut, propIndex, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], null);
 			else
-				CreateSetNotNullValue(ilGen, column, targetProp, prop.PropertyType);
+				CreateSetNotNullValue(ilOut, propIndex, targetProp, prop.PropertyType);
 			
-			ilGen.MarkLabel(lblEnd);
+			ilOut.MarkLabel(lblEnd);
 		}
 
-		protected void GenerateMethodHeader(ILGenerator ilOut, int column)
+		protected override void CreateExtractNested(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataRelationMapAttribute mapping)
+		{
+			; 
+		}
+
+
+		protected void GenerateMethodHeader(ILGenerator ilOut, int propIndex)
 		{
 			ilOut.DeclareLocal(typeof(object));
 
 			ilOut.Emit(OpCodes.Ldarg_1);
-			ilOut.Emit(OpCodes.Ldc_I4, column);
+			
+			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldind_I4);
+			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, column);
+
 			ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
 		}
 
-		protected void GenerateSetDirect(ILGenerator ilOut, int column, MethodInfo setProp, Type propType, MethodInfo readerGetMethod, Type subType)
+		protected void GenerateSetDirect(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType, MethodInfo readerGetMethod, Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldarg_1);
-			ilOut.Emit(OpCodes.Ldc_I4, column);
+
+			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldind_I4);
+			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, column);
+
 			ilOut.EmitCall(OpCodes.Callvirt, readerGetMethod, null);
 
 			if (subType != null)
@@ -128,10 +133,17 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void CreateSetNotNullValue(ILGenerator ilOut, int column, MethodInfo setProp, Type propType)
+		protected void CreateSetNotNullValue(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
-			ilOut.Emit(OpCodes.Ldc_I4, column);
+
+			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldind_I4);
+			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, column);
 			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 
@@ -144,10 +156,17 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void CreateSetNotNullValueFromSubType(ILGenerator ilOut, int column, MethodInfo setProp, Type propType, Type subType)
+		protected void CreateSetNotNullValueFromSubType(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType, Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
-			ilOut.Emit(OpCodes.Ldc_I4, column);
+
+			ilOut.Emit(OpCodes.Ldarg_3);
+			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldind_I4);
+			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, column);
 			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 

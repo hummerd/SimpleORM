@@ -8,7 +8,7 @@ namespace SimpleORM
 	public interface IPropertySetterGenerator
 	{
 		void GenerateSetterMethod(
-			ILGenerator ilGen, 
+			ILGenerator ilOut, 
 			Type targetClassType, 
 			int schemeId, 
 			DataTable schemaTable, 

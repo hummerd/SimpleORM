@@ -9,6 +9,7 @@ using System.Xml;
 using SimpleORM.Attributes;
 using SimpleORM.Exception;
 using SimpleORM.PropertySetterGenerator;
+using System.Runtime.InteropServices;
 
 
 namespace SimpleORM
@@ -129,6 +130,7 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill objects from null.", "reader");
 
 			var objectType = typeof(TObject);
+			List<List<int>> columnIndexes = null;
 
 			//Create new cache only if we manage objects cache
 			//if (clearObjectCache)
@@ -139,18 +141,22 @@ namespace SimpleORM
 			{
 				if (extractInfo == null)
 				{
+					DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
 					extractInfo = GetSetterMethod(
 						objectType,
 						typeof(IDataReader),
-						GetTableFromSchema(reader.GetSchemaTable()), 
+						schemeTable, 
 						schemeId);
+
 					if (extractInfo == null || extractInfo.FillMethod == null)
 						throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 				}
 
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
-				CallExtractorMethod(extractInfo.FillMethod, obj, reader, null);
+				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
 				objectList.Add(obj);
 			}
 		}
@@ -178,10 +184,11 @@ namespace SimpleORM
 			if (objectType == null)
 				objectType = obj.GetType();
 
+			DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
 			ExtractInfo extractInfo = GetSetterMethod(
 				objectType,
 				typeof(IDataReader),
-				GetTableFromSchema(reader.GetSchemaTable()), 
+				schemeTable, 
 				schemeId);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
@@ -190,6 +197,8 @@ namespace SimpleORM
 			//If there is no instance create it
 			if (obj == null)
 				obj = _ObjectBuilder.CreateObject(objectType);
+
+			List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
 			//Fill object
 			CallExtractorMethod(extractInfo.FillMethod, obj, reader, null);
@@ -289,7 +298,7 @@ namespace SimpleORM
 			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
-			List<int> columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
+			List<List<int>> columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
 
 			//If there is no instance create it
 			if (obj == null)
@@ -317,7 +326,8 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill object of unknown type null.", "objectType");
 
 			ExtractInfo extractInfo = null;
-			List<int> columnIndexes = null;
+			//List<int> columnIndexes = null;
+			List<List<int>> columnIndexes = null;
 
 			//Trying to increase internal capacity of object container
 			MethodInfo setCapacity = objectList.GetType().GetMethod("set_Capacity", new Type[] { typeof(int) });
@@ -348,7 +358,8 @@ namespace SimpleORM
 					if (extractInfo == null || extractInfo.FillMethod == null)
 						throw new InvalidOperationException("Can not fill object without mapping definition.");
 
-					columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
+					columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
+					//columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
 				}
 
 				object obj;
@@ -367,6 +378,24 @@ namespace SimpleORM
 				_CreatedObjects.Clear();
 		}
 
+		protected List<List<int>> GetSubColumnsIndexes(DataTable table, ExtractInfo extractInfo)
+		{
+			return GetSubColumnsIndexes(table, extractInfo, null);
+		}
+
+		protected List<List<int>> GetSubColumnsIndexes(DataTable table, ExtractInfo extractInfo, List<List<int>> result)
+		{
+			if (result == null)
+				result = new List<List<int>>();
+
+			result.Add(ColumnsIndexes(table, extractInfo.PropColumns));
+
+			foreach (var item in extractInfo.SubTypes)
+				GetSubColumnsIndexes(table, item, result);
+
+			return result;
+		}
+
 		protected List<int> ColumnsIndexes(DataTable table, List<string> columns)
 		{
 			List<int> result = new List<int>(columns.Count);
@@ -376,9 +405,10 @@ namespace SimpleORM
 			return result;
 		}
 
-		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data, IList<int> columns)
+		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data, List<List<int>> subColumns)
 		{
-			extractorMethod.Invoke(null, new object[] { obj, data, this, columns });
+			int clmn = 0;
+			extractorMethod.Invoke(null, new object[] { obj, data, this, subColumns, clmn });
 		}
 
 		#endregion
@@ -582,12 +612,14 @@ namespace SimpleORM
 		{
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetClassType,
 				MethodAttributes.Public | MethodAttributes.Static,
-				CallingConventions.Standard, typeof(void), new Type[] { targetClassType, typeof(object), GetType(), typeof(IList<int>) });
+				CallingConventions.Standard, typeof(void),
+				new Type[] { targetClassType, typeof(object), GetType(), typeof(List<List<int>>), Type.GetType("System.Int32&") });
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
 			methodBuilder.DefineParameter(2, ParameterAttributes.In, "row");
 			methodBuilder.DefineParameter(3, ParameterAttributes.In, "mapper");
-			methodBuilder.DefineParameter(4, ParameterAttributes.In, "columns");
+			methodBuilder.DefineParameter(4, ParameterAttributes.In, "columnsList");
+			methodBuilder.DefineParameter(5, ParameterAttributes.Out, "columnsIx");
 
 			return methodBuilder;
 		}

@@ -171,6 +171,63 @@ namespace DataMapperTest
 		}
 
 		[TestMethod]
+		public void FillObjectTest_ComplexPropLevel2()
+		{
+			TesterComplexProp2 tester = new TesterComplexProp2();
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
+
+			if (tester.CmplProp == null)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp.EnumProp != TestEnum.First)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp.ValueProp != 72)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp.CmplProp1 == null)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp.CmplProp1 != null && tester.CmplProp.ValueProp != 72)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+			
+			if (tester.CmplProp2 == null)
+			   Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp2.StructProp != _CurrentDate)
+			   Assert.Fail("FillObjectTest_ComplexProp fails.");
+		}
+
+		[TestMethod]
+		public void FillObjectTest_ComplexProp()
+		{
+			TesterComplexProp tester = new TesterComplexProp();
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
+
+			if (tester.EnumProp != TestEnum.First)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.ValueProp != 72)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp1 == null)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp1 != null && tester.CmplProp1.ValueProp != 72)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp2 == null)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+
+			if (tester.CmplProp2.StructProp != _CurrentDate)
+				Assert.Fail("FillObjectTest_ComplexProp fails.");
+		}
+
+		[TestMethod]
 		public void FillObjectTest_EnumProp()
 		{
 			TesterEnumProp tester = new TesterEnumProp();
