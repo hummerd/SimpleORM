@@ -7,8 +7,8 @@ namespace SimpleORM.Attributes
 	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
 	public class DataRelationMapAttribute : DataMapAttribute
 	{
-		private int _NestedSchemeId = 0;
-		private Type _ItemType;
+		protected int _NestedSchemeId = 0;
+		protected Type _ItemType;
 
 
 		public DataRelationMapAttribute(string relationName)

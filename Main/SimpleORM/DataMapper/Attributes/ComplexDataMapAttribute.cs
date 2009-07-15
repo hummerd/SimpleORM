@@ -5,28 +5,19 @@ using System.Text;
 namespace SimpleORM.Attributes
 {
 	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-	public class ComplexDataMapAttribute : DataMapAttribute
+	public class ComplexDataMapAttribute : DataRelationMapAttribute
 	{
-		private int _NestedSchemeId = 0;
-		private Type _ItemType;
+		public ComplexDataMapAttribute()
+			: base(null)
+		{ }
 
-		
-		
-		public int NestedSchemeId
+		public ComplexDataMapAttribute(int nestedSchemeId, Type itemType)
+			: base(null, 0, nestedSchemeId, itemType)
+		{ }
+
+		public ComplexDataMapAttribute(int schemeId, int nestedSchemeId, Type itemType)
+			: base(null, schemeId, nestedSchemeId, itemType)
 		{
-			get { return _NestedSchemeId; }
-			set { _NestedSchemeId = value; }
 		}
-
-		public Type ItemType
-		{
-			get { return _ItemType; }
-			set { _ItemType = value; }
-		}
-
-		//public override bool Equals(object obj)
-		//{
-		//   return ItemType;
-		//}
 	}
 }

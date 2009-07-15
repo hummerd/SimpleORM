@@ -52,7 +52,7 @@ namespace SimpleORM.PropertySetterGenerator
 				if (mapping == null)
 					continue;
 
-				if (mapping is DataColumnMapAttribute)
+				if (mapping.GetType() == typeof(DataColumnMapAttribute))
 				{
 					CreateExtractScalar(
 						ilOut,
@@ -64,7 +64,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 					extractInfo.PropColumns.Add(mapping.MappingName);
 				}
-				else if (generateExtractNested && mapping is DataRelationMapAttribute)
+				else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
 					CreateExtractNested(
 						ilOut,
 						targetClassType,
@@ -78,7 +78,7 @@ namespace SimpleORM.PropertySetterGenerator
 				if (mapping == null)
 					continue;
 
-				if (mapping is ComplexDataMapAttribute)
+				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
 				{
 					MethodInfo getProp = targetClassType.GetMethod("get_" + prop.Name);
 					MethodInfo setProp = targetClassType.GetMethod("set_" + prop.Name);

@@ -664,7 +664,7 @@ namespace SimpleORM
 			string qry = "/MappingDefinition/TypeMapping{0}/PropetyMapping{1}";
 			string type = prop.DeclaringType.Assembly.GetName().Name;
 			type = type + ", " + prop.DeclaringType.FullName;
-			string typeClause = "[@typeName = \"" + type + "\" and @schemeId = \"" + schemeId + "\"]";
+			string typeClause = "[@typeName=\"" + type + "\" and @schemeId=\"" + schemeId + "\"]";
 			string propClause = "[@propertyName = \"" + prop.Name + "\"]";
 			qry = String.Format(qry, typeClause, propClause);
 
@@ -678,31 +678,44 @@ namespace SimpleORM
 			if (att == null)
 			{
 				att = xmlMapping.Attributes["dataRelationName"];
+				Type itemType = null;
+				int nestedSchemaId = schemeId;
 
 				if (att != null)
 				{
-					Type itemType = null;
-					int nestedSchemaId = schemeId;
-					
-					XmlAttribute attType = xmlMapping.Attributes["nestedItemType"];
-					if (attType != null && !String.IsNullOrEmpty(attType.Value))
-					{
-						string[] typeInfo = attType.Value.Split(',');
-						itemType = Assembly.Load(typeInfo[0].Trim()).GetType(typeInfo[1].Trim());
-					}
-
-					XmlAttribute attNestedSchemaId = xmlMapping.Attributes["nestedSchemaId"];
-					if (attNestedSchemaId != null && !String.IsNullOrEmpty(attNestedSchemaId.Value))
-						nestedSchemaId = int.Parse(attNestedSchemaId.Value);
-
+					GetNestedProps(xmlMapping, ref nestedSchemaId, ref itemType);
 					return new DataRelationMapAttribute(att.Value, schemeId, nestedSchemaId, itemType);
 				}
 				else
-					return new DataColumnMapAttribute(prop.Name, schemeId);
+				{
+					att = xmlMapping.Attributes["complex"];
+
+					if (att != null)
+					{
+						GetNestedProps(xmlMapping, ref nestedSchemaId, ref itemType);
+						return new ComplexDataMapAttribute(nestedSchemaId, itemType);
+					}
+					else
+						return new DataColumnMapAttribute(prop.Name, schemeId);
+				}
 			}
 			else
 				return new DataColumnMapAttribute(
 					String.IsNullOrEmpty(att.Value) ? prop.Name : att.Value, schemeId);
+		}
+
+		protected void GetNestedProps(XmlNode xmlMapping, ref int nestedSchemeId, ref Type itemType)
+		{
+			XmlAttribute attType = xmlMapping.Attributes["nestedItemType"];
+			if (attType != null && !String.IsNullOrEmpty(attType.Value))
+			{
+				string[] typeInfo = attType.Value.Split(',');
+				itemType = Assembly.Load(typeInfo[0].Trim()).GetType(typeInfo[1].Trim());
+			}
+
+			XmlAttribute attNestedSchemaId = xmlMapping.Attributes["nestedSchemaId"];
+			if (attNestedSchemaId != null && !String.IsNullOrEmpty(attNestedSchemaId.Value))
+				nestedSchemeId = int.Parse(attNestedSchemaId.Value);
 		}
 
 		/// <summary>
@@ -717,7 +730,7 @@ namespace SimpleORM
 			string qry = "/MappingDefinition/TypeMapping{0}";
 			string typeName = type.Assembly.GetName().Name;
 			typeName = typeName + ", " + type.FullName;
-			string typeClause = "[@typeName = \"" + type + "\" and @schemeId = \"" + schemeId + "\"]";
+			string typeClause = "[@typeName=\"" + typeName + "\" and @schemeId=\"" + schemeId + "\"]";
 			qry = String.Format(qry, typeClause);
 
 			//Looking for node
