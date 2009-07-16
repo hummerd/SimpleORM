@@ -599,7 +599,7 @@ namespace SimpleORM
 			string newClassName = className;
 			int i = 0;
 			while (_ModuleBuilder.GetType(newClassName) != null)
-				newClassName = className + i;
+				newClassName = className + i++;
 
 			return _ModuleBuilder.DefineType(newClassName, TypeAttributes.Class | TypeAttributes.Public);
 		}
