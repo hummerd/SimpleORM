@@ -1,14 +1,15 @@
-﻿<?xml version="1.0" encoding="utf-8" ?> 
+﻿<?xml version="1.0" encoding="utf-8" ?>
 <MappingDefinition>
-  <TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0">
-	<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>
-	<PropetyMapping propertyName="ValuePropNI" dataColumnName="Field1"/>
-	<PropetyMapping propertyName="RefProp"  dataColumnName="Field2"/>
-	<PropetyMapping propertyName="StructProp" dataColumnName="Field3"/>
-	<PropetyMapping propertyName="NullableProp" dataColumnName="Field3"/>
-	<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1"/>
-	<!--<PropetyMapping propertyName="NestedList" dataRelationName="Relation1" nestedItemType="DataMapperTest, DataMapperTest.TesterAll" nestedSchemaId="2"/>-->
-	<!--<PropetyMapping propertyName="NestedList" complex="" itemType="DataMapperTest, DataMapperTest.TesterAll" nestedSchemaId="2"/>-->
-  </TypeMapping>
+	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0">
+		<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>
+		<PropetyMapping propertyName="ValuePropNI" dataColumnName="Field1"/>
+		<PropetyMapping propertyName="RefProp"  dataColumnName="Field2"/>
+		<PropetyMapping propertyName="StructProp" dataColumnName="Field3"/>
+		<PropetyMapping propertyName="NullableProp" dataColumnName="Field3"/>
+		<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1"/>
+		<PropetyMapping propertyName="TesterList" dataRelationName="Relation1"  />
+		<PropetyMapping propertyName="TesterArrayList" dataRelationName="Relation1" nestedItemType="DataMapperTest, DataMapperTest.TesterAll" />
+		<PropetyMapping propertyName="CmplProp" complex="" />
+	</TypeMapping>
 </MappingDefinition>
-  
+

@@ -298,6 +298,8 @@ namespace SimpleORM
 			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
+			_CreatedObjects = new Dictionary<DataRow, object>(1);
+
 			List<List<int>> columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
 
 			//If there is no instance create it
@@ -319,7 +321,7 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill objects from null.", "dataCollection");
 
 			Type listType = objectList.GetType();
-			if (listType.IsGenericType)
+			if (objectType == null && listType.IsGenericType)
 				objectType = listType.GetGenericArguments()[0];
 
 			if (objectType == null)
@@ -330,7 +332,7 @@ namespace SimpleORM
 			List<List<int>> columnIndexes = null;
 
 			//Trying to increase internal capacity of object container
-			MethodInfo setCapacity = objectList.GetType().GetMethod("set_Capacity", new Type[] { typeof(int) });
+			MethodInfo setCapacity = listType.GetMethod("set_Capacity", new Type[] { typeof(int) });
 			if (setCapacity != null)
 				setCapacity.Invoke(objectList, new object[] { dataCollection.Count + objectList.Count });
 

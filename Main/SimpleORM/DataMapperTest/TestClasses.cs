@@ -210,6 +210,14 @@ namespace DataMapperTest
 			get { return _TesterArrayList; }
 			set { _TesterArrayList = value; }
 		}
+
+		private TesterStructProp _CmplProp;
+		[ComplexDataMap()]
+		public TesterStructProp CmplProp
+		{
+			get { return _CmplProp; }
+			set { _CmplProp = value; }
+		}
 	}
 
 	public class TesterAllArrayList : ArrayList

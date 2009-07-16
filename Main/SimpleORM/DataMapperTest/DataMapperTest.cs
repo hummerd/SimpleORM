@@ -359,7 +359,10 @@ namespace DataMapperTest
 				 tester.RefProp != "Hey!" ||
 				 tester.StructProp != _CurrentDate ||
 				 tester.NullableProp != _CurrentDate ||
-				 tester.NullablePropBool != true
+				 tester.NullablePropBool != true ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != _CurrentDate
 				)
 				Assert.Fail("FillObjectTest fails.");
 
@@ -370,7 +373,10 @@ namespace DataMapperTest
 				 tester.RefProp != null ||
 				 tester.StructProp != default(DateTime) ||
 				 tester.NullableProp != null ||
-				 tester.NullablePropBool != null
+				 tester.NullablePropBool != null ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != default(DateTime)
 				)
 				Assert.Fail("FillObjectTest with DBNull fails.");
 		}
@@ -432,7 +438,10 @@ namespace DataMapperTest
 				 tester.RefProp != "Hey!" ||
 				 tester.StructProp != _CurrentDate ||
 				 tester.NullableProp != _CurrentDate ||
-				 tester.NullablePropBool != true
+				 tester.NullablePropBool != true ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != _CurrentDate
 				)
 				Assert.Fail("FillObjectTest fails.");
 
@@ -443,7 +452,10 @@ namespace DataMapperTest
 				 tester.RefProp != null ||
 				 tester.StructProp != default(DateTime) ||
 				 tester.NullableProp != null ||
-				 tester.NullablePropBool != null
+				 tester.NullablePropBool != null ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != default(DateTime)
 				)
 				Assert.Fail("FillObjectTest with DBNull fails.");
 		}
