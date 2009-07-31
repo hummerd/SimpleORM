@@ -148,6 +148,44 @@ namespace DataMapperTest
 		}
 
 		[TestMethod]
+		public void FillObjectReaderTest()
+		{
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+
+			TesterAll result = new TesterAll();
+			var reader = _DateTable.CreateDataReader();
+			reader.Read();
+			DataMapper.Default.FillObject(reader, result);
+
+			if (result.ValueProp != 72 ||
+				 result.ValuePropNI != true ||
+				 result.RefProp != "Hey!" ||
+				 result.StructProp != _CurrentDate ||
+				 result.NullableProp != _CurrentDate ||
+				 result.NullablePropBool != true
+				//result.TesterArrayList.Count != 2 ||
+				//result.TesterList.Count != 2
+				)
+				Assert.Fail("FillObjectTest fails.");
+
+			reader.Read();
+			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
+			if (result.ValueProp != 34 ||
+				 result.ValuePropNI != true ||
+				 result.RefProp != "Twice" ||
+				 result.StructProp != DateTime.MaxValue ||
+				 result.NullableProp != DateTime.MaxValue ||
+				 result.NullablePropBool != true
+				//result.TesterArrayList.Count != 1 ||
+				//result.TesterList.Count != 1
+				)
+				Assert.Fail("FillObjectsTest fails.");
+
+			reader.Close();
+		}
+
+		[TestMethod]
 		public void PerformanseTest()
 		{
 			int rowCount = 100000;

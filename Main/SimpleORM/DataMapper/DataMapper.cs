@@ -201,7 +201,7 @@ namespace SimpleORM
 			List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
 			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod, obj, reader, null);
+			CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
 			return obj;
 		}
 
