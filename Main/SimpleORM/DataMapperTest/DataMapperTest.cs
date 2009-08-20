@@ -205,7 +205,7 @@ namespace DataMapperTest
 			TesterAll tester = new TesterAll();
 			//DataMapper.Default.ClearCache();
 			//DataMapper.Default.SetConfig(null);
-			DataMapper.Default.SaveGeneratedAsm("asm1.dll");
+			//DataMapper.Default.SaveGeneratedAsm("asm1.dll");
 
 			var reader = dt.CreateDataReader();
 			reader.Read();

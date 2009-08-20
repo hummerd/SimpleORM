@@ -93,10 +93,10 @@ namespace SimpleORM
 			_ModuleBuilder = null;
 		}
 
-		public void SaveGeneratedAsm(string path)
-		{
-			_AsmBuilder.Save(path);
-		}
+		//public void SaveGeneratedAsm(string path)
+		//{
+		//   _AsmBuilder.Save(path);
+		//}
 
 		#region Static facade
 
@@ -596,8 +596,8 @@ namespace SimpleORM
 			if (_ModuleBuilder == null)
 			{
 				_AsmBuilder = Thread.GetDomain().DefineDynamicAssembly(
-					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.RunAndSave);
-				_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod", "asm1.dll");
+					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.Run);
+				_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod");
 			}
 
 			string className = "DataPropertySetter_" + targetClassType.FullName;
