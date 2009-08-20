@@ -61,11 +61,21 @@ namespace SimpleORM.PropertySetterGenerator
 			MethodInfo targetProp = targetClassType.GetMethod("set_" + prop.Name);
 
 			Label lblElse = ilOut.DefineLabel();
+			Label lblSetNull = ilOut.DefineLabel();
 			Label lblEnd = ilOut.DefineLabel();
 
-			GenerateMethodHeader(ilOut, propIndex);
+			GeneratePropSetterHeader(ilOut, propIndex);
 
+			//ilOut.Emit(OpCodes.Brfalse, lblElse);
+			ilOut.Emit(OpCodes.Ldc_I4_0);
+			ilOut.Emit(OpCodes.Blt, lblSetNull);
+
+			ilOut.Emit(OpCodes.Ldarg_1);
+			ilOut.Emit(OpCodes.Ldloc_1);
+			ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
 			ilOut.Emit(OpCodes.Brfalse, lblElse);
+
+			ilOut.MarkLabel(lblSetNull);
 
 			Type dbType = schemaTable.Columns[column].DataType;
 			SetterType setterType = GetSetterType(prop, dbType);
@@ -95,11 +105,43 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected void GenerateMethodHeader(ILGenerator ilOut, int propIndex)
+		protected void GeneratePropSetterHeader(ILGenerator ilOut, int propIndex)
 		{
-			ilOut.DeclareLocal(typeof(object));
+			/*
+			 *  (0 TargetType obj, 1 DataReader reader, 2 DataMapper mapper, 3 List<List<int>> clmns, 4 ref clmnIx)
+			 *  int ix = list[columnsIx]['propIndex'];
+			 *  if (ix < 0 || reader.ISDBNull(ix))
+			 *		val = DBNull.Value;
+			 *	 else
+			 *		val = dataRow[ix];
+			 *		
+			 *  if (DBNull.Value 
+			 */
 
-			ilOut.Emit(OpCodes.Ldarg_1);
+			 //L_0000: ldarg.1 
+			 //L_0001: ldarg.2 
+			 //L_0002: callvirt instance !0 [mscorlib]System.Collections.Generic.List`1<class [mscorlib]System.Collections.Generic.List`1<int32>>::get_Item(int32)
+			 //L_0007: ldc.i4.0 
+			 //L_0008: callvirt instance !0 [mscorlib]System.Collections.Generic.List`1<int32>::get_Item(int32)
+			 //L_000d: stloc.1 
+			 //L_000e: ldloc.1 
+			 //L_000f: ldc.i4.0 
+			 //L_0010: blt.s L_001b
+			 //L_0012: ldarg.0 
+			 //L_0013: ldloc.1 
+			 //L_0014: callvirt instance bool [System.Data]System.Data.IDataRecord::IsDBNull(int32)
+			 //L_0019: brfalse.s L_0023
+			 //L_001b: ldsfld class [mscorlib]System.DBNull [mscorlib]System.DBNull::Value
+			 //L_0020: stloc.0 
+			 //L_0021: br.s L_002b
+			 //L_0023: ldarg.0 
+			 //L_0024: ldloc.1 
+			 //L_0025: callvirt instance object [System.Data]System.Data.IDataRecord::get_Item(int32)
+			 //L_002a: stloc.0 
+			 //L_002b: ldloc.0 
+			 //L_002c: callvirt instance string [mscorlib]System.Object::ToString()
+
+//			ilOut.Emit(OpCodes.Ldarg_1);
 			
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
@@ -107,9 +149,12 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
 			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
 			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+
+			ilOut.Emit(OpCodes.Stloc_1);
+			ilOut.Emit(OpCodes.Ldloc_1);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 
-			ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
+			//ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
 		}
 
 		protected void GenerateSetDirect(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType, MethodInfo readerGetMethod, Type subType)
@@ -117,12 +162,13 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldarg_1);
 
-			ilOut.Emit(OpCodes.Ldarg_3);
-			ilOut.Emit(OpCodes.Ldarg, 4);
-			ilOut.Emit(OpCodes.Ldind_I4);
-			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
-			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			////ilOut.Emit(OpCodes.Ldarg_3);
+			////ilOut.Emit(OpCodes.Ldarg, 4);
+			////ilOut.Emit(OpCodes.Ldind_I4);
+			////ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			////ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			////ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			ilOut.Emit(OpCodes.Ldloc_1);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 
 			ilOut.EmitCall(OpCodes.Callvirt, readerGetMethod, null);
@@ -137,13 +183,14 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
 
-			ilOut.Emit(OpCodes.Ldarg_3);
-			ilOut.Emit(OpCodes.Ldarg, 4);
-			ilOut.Emit(OpCodes.Ldind_I4);
-			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
-			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldarg_3);
+			//ilOut.Emit(OpCodes.Ldarg, 4);
+			//ilOut.Emit(OpCodes.Ldind_I4);
+			//ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			//ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
+			ilOut.Emit(OpCodes.Ldloc_1);
 			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 
@@ -160,13 +207,14 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
 
-			ilOut.Emit(OpCodes.Ldarg_3);
-			ilOut.Emit(OpCodes.Ldarg, 4);
-			ilOut.Emit(OpCodes.Ldind_I4);
-			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
-			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Ldarg_3);
+			//ilOut.Emit(OpCodes.Ldarg, 4);
+			//ilOut.Emit(OpCodes.Ldind_I4);
+			//ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			//ilOut.Emit(OpCodes.Ldc_I4, propIndex);
+			//ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
+			ilOut.Emit(OpCodes.Ldloc_1);
 			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
 			ilOut.Emit(OpCodes.Stloc_0);
 

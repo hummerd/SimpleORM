@@ -111,7 +111,9 @@ namespace DataMapperTest
 			DataMapper.Default.SetConfig(null);
 
 			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
-			DataMapper.Default.FillObjectList<TesterAll>(objs, _DateTable.CreateDataReader());
+			
+			var reader = _DateTable.CreateDataReader();
+			DataMapper.Default.FillObjectList<TesterAll>(objs, reader);
 
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||
@@ -145,6 +147,8 @@ namespace DataMapperTest
 				// objs[2].TesterList.Count != 0
 				)
 				Assert.Fail("FillObjectsTest with DBNull fails.");
+
+			reader.Close();
 		}
 
 		[TestMethod]
@@ -186,6 +190,42 @@ namespace DataMapperTest
 		}
 
 		[TestMethod]
+		public void FillObjectReaderSchemeDegradeTest()
+		{
+			//This call will generate full schema
+			FillObjectReaderTest();
+
+			//now tying to load from degrade scheme 
+			DataTable dt = _DateTable.Copy();
+			dt.Columns.RemoveAt(4);
+			dt.Columns.RemoveAt(3);
+			dt.Columns.RemoveAt(2);
+			dt.Columns.RemoveAt(1);
+
+			TesterAll tester = new TesterAll();
+			//DataMapper.Default.ClearCache();
+			//DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SaveGeneratedAsm("asm1.dll");
+
+			var reader = dt.CreateDataReader();
+			reader.Read();
+
+			DataMapper.Default.FillObject(reader, tester);
+
+			if (tester.ValueProp != 72 ||
+				 tester.ValuePropNI != true ||
+				 tester.RefProp != null ||
+				 tester.StructProp != DateTime.MinValue ||
+				 tester.NullableProp != null ||
+				 tester.NullablePropBool != true ||
+				 //tester.TesterArrayList != null ||
+				 //tester.TesterList != null ||
+				 tester.CmplProp.StructProp != DateTime.MinValue
+				)
+				Assert.Fail("FillObjectTest fails.");
+		}
+
+		[TestMethod]
 		public void PerformanseTest()
 		{
 			int rowCount = 100000;
@@ -206,6 +246,39 @@ namespace DataMapperTest
 
 			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);
 			testContextInstance.WriteLine("Time for creation of one object is: " + new TimeSpan(span.Ticks / rowCount));
+		}
+
+		[TestMethod]
+		public void FillObjectSchemeDegradeTest()
+		{
+			//This call will generate full schema
+			FillObjectTest();
+
+			//now tying to load from degrade scheme 
+			DataTable dt = _DateTable.Copy();
+			dt.Columns.RemoveAt(4);
+			dt.Columns.RemoveAt(3);
+			dt.Columns.RemoveAt(2);
+			dt.Columns.RemoveAt(1);
+
+			TesterAll tester = new TesterAll();
+			//DataMapper.Default.ClearCache();
+			//DataMapper.Default.SetConfig(null);
+			//DataMapper.Default.SaveGeneratedAsm("asm1.dll");
+
+			DataMapper.Default.FillObject(dt.Rows[0], tester, 0);
+			
+			if (tester.ValueProp != 72 ||
+				 tester.ValuePropNI != true ||
+				 tester.RefProp != null ||
+				 tester.StructProp != DateTime.MinValue ||
+				 tester.NullableProp != null ||
+				 tester.NullablePropBool != true ||
+				 tester.TesterArrayList.Count != 0 ||
+				 tester.TesterList.Count != 0 ||
+				 tester.CmplProp.StructProp != DateTime.MinValue
+				)
+				Assert.Fail("FillObjectTest fails.");
 		}
 
 		[TestMethod]

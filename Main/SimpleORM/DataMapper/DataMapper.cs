@@ -16,7 +16,8 @@ namespace SimpleORM
 {
 	public class DataMapper
 	{
-		protected ModuleBuilder _ModuleBuilder;
+		protected ModuleBuilder		_ModuleBuilder;
+		protected AssemblyBuilder	_AsmBuilder;
 
 		protected readonly 
 			Dictionary<Type,		//target object type (Entity type)
@@ -92,6 +93,10 @@ namespace SimpleORM
 			_ModuleBuilder = null;
 		}
 
+		public void SaveGeneratedAsm(string path)
+		{
+			_AsmBuilder.Save(path);
+		}
 
 		#region Static facade
 
@@ -590,9 +595,9 @@ namespace SimpleORM
 		{
 			if (_ModuleBuilder == null)
 			{
-				AssemblyBuilder asmBuilder = Thread.GetDomain().DefineDynamicAssembly(
-					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.Run);
-				_ModuleBuilder = asmBuilder.DefineDynamicModule("DataPropertySetterMod");
+				_AsmBuilder = Thread.GetDomain().DefineDynamicAssembly(
+					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.RunAndSave);
+				_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod", "asm1.dll");
 			}
 
 			string className = "DataPropertySetter_" + targetClassType.FullName;

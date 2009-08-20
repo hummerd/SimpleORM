@@ -46,6 +46,8 @@ namespace SimpleORM.PropertySetterGenerator
 			int propIndex = 0;
 			int complexPropIndex = 0;
 
+			GenerateMethodHeader(ilOut);
+
 			foreach (PropertyInfo prop in props)
 			{
 				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
@@ -100,6 +102,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected abstract void CreateExtractNested(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataRelationMapAttribute mapping);
 
+
+		protected void GenerateMethodHeader(ILGenerator ilOut)
+		{
+			ilOut.DeclareLocal(typeof(object));
+			ilOut.DeclareLocal(typeof(int));
+		}
 
 		protected void GenerateExtractComplex(ILGenerator ilOut, PropertyInfo prop, MethodInfo getProp, MethodInfo setProp, MethodInfo subExtract)
 		{

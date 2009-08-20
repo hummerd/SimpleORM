@@ -51,7 +51,7 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblElse = ilOut.DefineLabel();
 			Label lblEnd = ilOut.DefineLabel();
 
-			GenerateMethodHeader(ilOut, propIndex);
+			GeneratePropSetterHeader(ilOut, propIndex);
 
 			ilOut.Emit(OpCodes.Bne_Un, lblElse);
 
@@ -91,11 +91,21 @@ namespace SimpleORM.PropertySetterGenerator
 				mapping.NestedSchemeId);
 		}
 
-		protected void GenerateMethodHeader(ILGenerator ilOut, int propIndex)
+		protected void GeneratePropSetterHeader(ILGenerator ilOut, int propIndex)
 		{
-			ilOut.DeclareLocal(typeof(object));
+			/*
+			 *  (0 TargetType obj, 1 DataRow row, 2 DataMapper mapper, 3 List<List<int>> clmns, 4 ref clmnIx)
+			 *  int ix = list[columnsIx]['propIndex'];
+			 *  if (ix <= 0)
+			 *		val = DBNull.Value;
+			 *	else
+			 *		val = dataRow[ix];
+			 *		
+			 *  if (DBNull.Value 
+			 */
 
-			ilOut.Emit(OpCodes.Ldarg_1);
+			Label lblIxPositive = ilOut.DefineLabel();
+			Label lblAfterGetRowItem = ilOut.DefineLabel();
 
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
@@ -104,8 +114,24 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
 			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
 
+			ilOut.Emit(OpCodes.Stloc_1);
+			ilOut.Emit(OpCodes.Ldloc_1);
+			ilOut.Emit(OpCodes.Ldc_I4_0);
+			ilOut.Emit(OpCodes.Bge, lblIxPositive);
+
+			ilOut.Emit(OpCodes.Ldsfld, _DBNullValue);
+			ilOut.Emit(OpCodes.Stloc_0);
+			ilOut.Emit(OpCodes.Br, lblAfterGetRowItem);
+
+			ilOut.MarkLabel(lblIxPositive);
+
+			ilOut.Emit(OpCodes.Ldarg_1);
+			ilOut.Emit(OpCodes.Ldloc_1);
 			ilOut.EmitCall(OpCodes.Call, _GetRowItem, null);
 			ilOut.Emit(OpCodes.Stloc_0);
+
+			ilOut.MarkLabel(lblAfterGetRowItem);
+
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldsfld, _DBNullValue);
 		}
