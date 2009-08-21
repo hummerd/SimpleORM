@@ -86,8 +86,7 @@ namespace SimpleORM.PropertySetterGenerator
 				mapping.MappingName,
 				propType,
 				itemType, 
-				targetClassType.GetMethod("set_" + prop.Name),
-				targetClassType.GetMethod("get_" + prop.Name),
+				prop,
 				mapping.NestedSchemeId);
 		}
 
@@ -254,7 +253,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="itemType"></param>
 		/// <param name="nestedSchemaId"></param>
 		/// <param name="setNested"></param>
-		protected void GenerateSetNestedProperty(ILGenerator ilOut, string relationName, Type propType, Type itemType, MethodInfo setProp, MethodInfo getProp, int nestedSchemaId)
+		protected void GenerateSetNestedProperty(ILGenerator ilOut, string relationName, Type propType, Type itemType, PropertyInfo prop, int nestedSchemaId)
 		{
 			#region Algorithm
 			//DataRow[] drChilds = dr.GetChildRows("RelationName");
@@ -332,6 +331,9 @@ namespace SimpleORM.PropertySetterGenerator
 			L_0064: ret 
 		*/
 			#endregion
+
+			MethodInfo getProp = prop.GetGetMethod();
+			MethodInfo setProp = prop.GetSetMethod();
 
 			MethodInfo createInst = typeof(Activator).GetMethod("CreateInstance", new Type[] { typeof(Type) });
 

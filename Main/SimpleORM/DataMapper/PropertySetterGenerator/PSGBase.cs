@@ -41,7 +41,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ExtractInfo extractInfo,
 			bool generateExtractNested)
 		{
-			PropertyInfo[] props = targetClassType.GetProperties();
+			List<PropertyInfo> props = GetProps(targetClassType);
 
 			int propIndex = 0;
 			int complexPropIndex = 0;
@@ -88,15 +88,34 @@ namespace SimpleORM.PropertySetterGenerator
 					GenerateExtractComplex(
 						ilOut,
 						prop,
-						getProp,
-						setProp,
 						extractInfo.SubTypes[complexPropIndex++].FillMethod);
 				}
 			}
 
 			ilOut.Emit(OpCodes.Ret);
 		}
-		
+
+		protected List<PropertyInfo> GetProps(Type type)
+		{
+			Dictionary<string, PropertyInfo> distinctProps = new Dictionary<string, PropertyInfo>(30);
+			PropertyInfo prop;
+
+			foreach (var item in type.GetProperties())
+			{
+				string propName = item.Name;
+				if (distinctProps.TryGetValue(propName, out prop))
+				{
+					if (item.DeclaringType == type)
+					{
+						distinctProps[propName] = item;
+					}
+				}
+				else
+					distinctProps.Add(propName, item);
+			}
+
+			return new List<PropertyInfo>(distinctProps.Values);
+		}
 
 		protected abstract void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex);
 
@@ -109,7 +128,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.DeclareLocal(typeof(int));
 		}
 
-		protected void GenerateExtractComplex(ILGenerator ilOut, PropertyInfo prop, MethodInfo getProp, MethodInfo setProp, MethodInfo subExtract)
+		protected void GenerateExtractComplex(ILGenerator ilOut, PropertyInfo prop, MethodInfo subExtract)
 		{
 			#region Algorithm
 			//PropType obj = mt.Prop1;
@@ -150,7 +169,7 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblAfterIf = ilOut.DefineLabel();
 
 			ilOut.Emit(OpCodes.Ldarg_0);
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);
+			ilOut.EmitCall(OpCodes.Callvirt, prop.GetGetMethod(), null);
 			ilOut.Emit(OpCodes.Stloc, locPropValue);
 			ilOut.Emit(OpCodes.Ldloc, locPropValue);
 			ilOut.Emit(OpCodes.Brtrue, lblAfterIf);
@@ -164,7 +183,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Stloc, locPropValue);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc, locPropValue);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			ilOut.EmitCall(OpCodes.Callvirt, prop.GetSetMethod(), null);
 
 			ilOut.MarkLabel(lblAfterIf);
 
