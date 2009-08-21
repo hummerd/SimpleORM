@@ -16,18 +16,18 @@ namespace SimpleORM
 {
 	public class DataMapper
 	{
-		protected ModuleBuilder		_ModuleBuilder;
-		protected AssemblyBuilder	_AsmBuilder;
+		protected ModuleBuilder _ModuleBuilder;
+		protected AssemblyBuilder _AsmBuilder;
 
-		protected readonly 
+		protected readonly
 			Dictionary<Type,		//target object type (Entity type)
 				Dictionary<Type,	//extractor type DataTable or IDataReader
 					Dictionary<int, ExtractInfo>>> _ExtractorCache = new Dictionary<Type, Dictionary<Type, Dictionary<int, ExtractInfo>>>();
 
 		protected Dictionary<DataRow, object> _CreatedObjects;
 
-		protected XmlDocument	_XmlDocument;
-		protected string			_ConfigFile;
+		protected XmlDocument _XmlDocument;
+		protected string _ConfigFile;
 
 		protected IObjectBuilder _ObjectBuilder;
 		protected Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
@@ -150,7 +150,7 @@ namespace SimpleORM
 					extractInfo = GetSetterMethod(
 						objectType,
 						typeof(IDataReader),
-						schemeTable, 
+						schemeTable,
 						schemeId);
 
 					if (extractInfo == null || extractInfo.FillMethod == null)
@@ -193,7 +193,7 @@ namespace SimpleORM
 			ExtractInfo extractInfo = GetSetterMethod(
 				objectType,
 				typeof(IDataReader),
-				schemeTable, 
+				schemeTable,
 				schemeId);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
@@ -295,9 +295,9 @@ namespace SimpleORM
 				objectType = obj.GetType();
 
 			ExtractInfo extractInfo = GetSetterMethod(
-				objectType, 
+				objectType,
 				typeof(DataTable),
-				dataRow.Table, 
+				dataRow.Table,
 				schemeId);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
@@ -359,7 +359,7 @@ namespace SimpleORM
 					extractInfo = GetSetterMethod(
 						objectType,
 						typeof(DataTable),
-						dataRow.Table, 
+						dataRow.Table,
 						schemeId);
 
 					if (extractInfo == null || extractInfo.FillMethod == null)
@@ -445,7 +445,7 @@ namespace SimpleORM
 			{
 				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
 				//Add method to cache
-				schemeMethods = new Dictionary<int, ExtractInfo>(2) { {schemeId, result} };
+				schemeMethods = new Dictionary<int, ExtractInfo>(2) { { schemeId, result } };
 				_ExtractorCache.Add(
 					objectType,
 					new Dictionary<Type, Dictionary<int, ExtractInfo>>() { { extractorType, schemeMethods } }
@@ -456,8 +456,8 @@ namespace SimpleORM
 			{
 				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
 				extractorSchemas.Add(
-					extractorType, 
-					new Dictionary<int, ExtractInfo>(2) { {schemeId, result} }
+					extractorType,
+					new Dictionary<int, ExtractInfo>(2) { { schemeId, result } }
 					);
 			}
 			// If extractor method does not exist for this scheme
@@ -520,7 +520,7 @@ namespace SimpleORM
 
 		//   return result;
 		//}
-		
+
 		/// <summary>
 		/// Generates setter method using xml config or type meta info.
 		/// </summary>
@@ -577,9 +577,9 @@ namespace SimpleORM
 
 				result.Add(
 					GenerateSetterMethod(
-						mapping.ItemType, 
-						mapping.NestedSchemeId, 
-						dtSource, 
+						mapping.ItemType,
+						mapping.NestedSchemeId,
+						dtSource,
 						methodGenerator));
 			}
 
@@ -643,10 +643,10 @@ namespace SimpleORM
 			if (attrs != null && attrs.Length > 0)
 			{
 				DataMapAttribute mappingAtt = Array.Find(attrs, delegate(object att)
-					{
-						DataMapAttribute propAtt = att as DataMapAttribute;
-						return propAtt != null && propAtt.SchemeId == schemeId;
-					}) as DataMapAttribute;
+				{
+					DataMapAttribute propAtt = att as DataMapAttribute;
+					return propAtt != null && propAtt.SchemeId == schemeId;
+				}) as DataMapAttribute;
 
 				if (mappingAtt != null &&
 					 mappingAtt is DataColumnMapAttribute &&
@@ -667,18 +667,14 @@ namespace SimpleORM
 		/// <returns></returns>
 		protected DataMapAttribute GetMappingFromXml(PropertyInfo prop, int schemeId)
 		{
-			//Generate XPath Query
-			string qry = "/MappingDefinition/TypeMapping{0}/PropetyMapping{1}";
-			string type = prop.DeclaringType.Assembly.GetName().Name;
-			type = type + ", " + prop.DeclaringType.FullName;
-			string typeClause = "[@typeName=\"" + type + "\" and @schemeId=\"" + schemeId + "\"]";
-			string propClause = "[@propertyName = \"" + prop.Name + "\"]";
-			qry = String.Format(qry, typeClause, propClause);
-
-			//Looking for node
-			XmlNode xmlMapping = _XmlDocument.SelectSingleNode(qry);
+			//Looking for node in reflected type
+			XmlNode xmlMapping = FindMapping(prop.ReflectedType, schemeId, prop);
 			if (xmlMapping == null)
-				return null;
+			{
+				xmlMapping = FindMapping(prop.DeclaringType, schemeId, prop);
+				if (xmlMapping == null)
+					return null;
+			}
 
 			//Create mapping class
 			XmlAttribute att = xmlMapping.Attributes["dataColumnName"];
@@ -709,6 +705,20 @@ namespace SimpleORM
 			else
 				return new DataColumnMapAttribute(
 					String.IsNullOrEmpty(att.Value) ? prop.Name : att.Value, schemeId);
+		}
+
+		protected XmlNode FindMapping(Type propType, int schemeId, PropertyInfo prop)
+		{
+			//Generate XPath Query
+			string qry = "/MappingDefinition/TypeMapping{0}/PropetyMapping{1}";
+			string type = propType.Assembly.GetName().Name;
+			type = type + ", " + propType.FullName;
+			string typeClause = "[@typeName=\"" + type + "\" and @schemeId=\"" + schemeId + "\"]";
+			string propClause = "[@propertyName = \"" + prop.Name + "\"]";
+			qry = String.Format(qry, typeClause, propClause);
+
+			//Looking for node
+			return _XmlDocument.SelectSingleNode(qry);
 		}
 
 		protected void GetNestedProps(XmlNode xmlMapping, ref int nestedSchemeId, ref Type itemType)

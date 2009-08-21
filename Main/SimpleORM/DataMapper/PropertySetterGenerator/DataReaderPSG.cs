@@ -58,7 +58,7 @@ namespace SimpleORM.PropertySetterGenerator
 			if (column < 0)
 				return;
 
-			MethodInfo targetProp = targetClassType.GetMethod("set_" + prop.Name);
+			MethodInfo targetProp = prop.GetSetMethod();
 
 			Label lblElse = ilOut.DefineLabel();
 			Label lblSetNull = ilOut.DefineLabel();

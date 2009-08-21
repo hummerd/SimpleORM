@@ -82,9 +82,6 @@ namespace SimpleORM.PropertySetterGenerator
 
 				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
 				{
-					MethodInfo getProp = targetClassType.GetMethod("get_" + prop.Name);
-					MethodInfo setProp = targetClassType.GetMethod("set_" + prop.Name);
-
 					GenerateExtractComplex(
 						ilOut,
 						prop,
