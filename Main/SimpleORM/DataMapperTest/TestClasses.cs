@@ -145,6 +145,25 @@ namespace DataMapperTest
 		}
 	}
 
+	public class TesterAllSub : TesterAll
+	{
+		private int _ValuePropSub;
+		[DataColumnMapAttribute("Field4")]
+		public new int ValueProp
+		{
+			get { return _ValuePropSub; }
+			set { _ValuePropSub = value; }
+		}
+
+		private bool _ValuePropNI_Sub;
+		[DataColumnMapAttribute("Field1")]
+		public override bool ValuePropNI
+		{
+			get { return _ValuePropNI_Sub; }
+			set { _ValuePropNI_Sub = value; }
+		}
+	}
+
 	public class TesterAll
 	{
 		private int _ValueProp;
@@ -157,7 +176,7 @@ namespace DataMapperTest
 
 		private bool _ValuePropNI;
 		[DataColumnMapAttribute("Field1")]
-		public bool ValuePropNI
+		public virtual bool ValuePropNI
 		{
 			get { return _ValuePropNI; }
 			set { _ValuePropNI = value; }

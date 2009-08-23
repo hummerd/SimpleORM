@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using System.Reflection;
 using SimpleORM.Attributes;
 using System.Data;
+using System.Diagnostics;
 
 
 namespace SimpleORM.PropertySetterGenerator
@@ -48,6 +49,8 @@ namespace SimpleORM.PropertySetterGenerator
 
 			GenerateMethodHeader(ilOut);
 
+			Debug.WriteLine("GenerateSetterMethod for " + targetClassType.Name);
+
 			foreach (PropertyInfo prop in props)
 			{
 				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
@@ -56,6 +59,8 @@ namespace SimpleORM.PropertySetterGenerator
 
 				if (mapping.GetType() == typeof(DataColumnMapAttribute))
 				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
 					CreateExtractScalar(
 						ilOut,
 						targetClassType,
@@ -67,11 +72,15 @@ namespace SimpleORM.PropertySetterGenerator
 					extractInfo.PropColumns.Add(mapping.MappingName);
 				}
 				else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
+				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
 					CreateExtractNested(
 						ilOut,
 						targetClassType,
 						prop,
 						mapping as DataRelationMapAttribute);
+				}
 			}
 
 			foreach (PropertyInfo prop in props)
@@ -82,6 +91,8 @@ namespace SimpleORM.PropertySetterGenerator
 
 				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
 				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + prop.PropertyType.Name);
+
 					GenerateExtractComplex(
 						ilOut,
 						prop,

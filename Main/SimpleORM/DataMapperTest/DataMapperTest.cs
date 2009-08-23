@@ -458,6 +458,41 @@ namespace DataMapperTest
 		}
 
 		[TestMethod]
+		public void FillObjectTestSubclassing()
+		{
+			TesterAllSub tester = new TesterAllSub();
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
+
+			if (tester.ValueProp != 1 ||
+				 tester.ValuePropNI != true ||
+				 tester.RefProp != "Hey!" ||
+				 tester.StructProp != _CurrentDate ||
+				 tester.NullableProp != _CurrentDate ||
+				 tester.NullablePropBool != true ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != _CurrentDate
+				)
+				Assert.Fail("FillObjectTest fails.");
+
+			DataMapper.Default.FillObject(_DateTable.Rows[2], tester, 0);
+
+			if (tester.ValueProp != default(int) ||
+				 tester.ValuePropNI != default(bool) ||
+				 tester.RefProp != null ||
+				 tester.StructProp != default(DateTime) ||
+				 tester.NullableProp != null ||
+				 tester.NullablePropBool != null ||
+				 tester.TesterArrayList.Count != 2 ||
+				 tester.TesterList.Count != 2 ||
+				 tester.CmplProp.StructProp != default(DateTime)
+				)
+				Assert.Fail("FillObjectTest with DBNull fails.");
+		}
+		
+		[TestMethod]
 		public void FillObjectTest()
 		{
 			TesterAll tester = new TesterAll();

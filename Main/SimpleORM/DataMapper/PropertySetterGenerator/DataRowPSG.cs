@@ -13,7 +13,6 @@ namespace SimpleORM.PropertySetterGenerator
 {
 	public class DataRowPSG : PSGBase, IPropertySetterGenerator
 	{
-		
 		protected static MethodInfo	_GetRowItem		= typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
 		protected static MethodInfo	_GetChildRows	= typeof(DataRow).GetMethod("GetChildRows", new Type[] { typeof(string) });
 		
