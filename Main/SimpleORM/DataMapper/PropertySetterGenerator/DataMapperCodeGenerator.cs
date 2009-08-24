@@ -22,6 +22,7 @@ namespace SimpleORM.PropertySetterGenerator
 		protected Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
 		protected XmlDocument		_XmlDocument;
 		protected string				_ConfigFile;
+		protected KeyClassGenerator _KeyGenerator;
 
 
 		public DataMapperCodeGenerator(Dictionary<Type, IPropertySetterGenerator> setterGenerators)
@@ -114,59 +115,6 @@ namespace SimpleORM.PropertySetterGenerator
 			return result;
 		}
 
-
-		protected Type GenerateKeyType(string key, DataTable dtSource, List<string> columns, IPropertySetterGenerator methodGenerator, int schemeId)
-		{
-			string className = "DataPropertySetter_" + key;
-			var tb = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
-
-			MethodBuilder equals = tb.DefineMethod("Equals",
-				MethodAttributes.Public | MethodAttributes.ReuseSlot |
-				MethodAttributes.Virtual | MethodAttributes.HideBySig,
-				typeof(bool),
-				new Type[] { typeof(object) });
-			ILGenerator equalsGen = equals.GetILGenerator();
-			LocalBuilder locObj = equalsGen.DeclareLocal(tb);
-			equalsGen.Emit(OpCodes.Ldarg_1);
-			equalsGen.Emit(OpCodes.Castclass, tb);
-			equalsGen.Emit(OpCodes.Stloc_0);
-
-			foreach (var item in columns)
-			{
-				//Generate field
-				var fb = tb.DefineField(item, dtSource.Columns[item].DataType, FieldAttributes.Public);
-
-				//Generate mapping definition attribute on this field
-				CustomAttributeBuilder attributeBuilder =
-					new CustomAttributeBuilder(
-							typeof(DataColumnMapAttribute).GetConstructor(new Type[2] { typeof(string), typeof(int) }),
-							new object[2] { item, schemeId });
-				fb.SetCustomAttribute(attributeBuilder);
-
-				//Generate part of Equals method for field generated above
-				equalsGen.Emit(OpCodes.Ldarg_0);
-				equalsGen.Emit(OpCodes.Ldfld, fb);
-				equalsGen.Emit(OpCodes.Ldloc_0);
-				equalsGen.Emit(OpCodes.Ldfld, fb);
-			}
-
-			//Generate Equals method
-			
-			//Generate Equals method
-
-			//Generate GetHashCode method
-
-			var type = tb.CreateType();
-
-			GenerateSetterMethod(
-				type,
-				schemeId,
-				dtSource,
-				methodGenerator
-				);
-
-			return type;
-		}
 
 		//protected ExtractInfo GenerateComplexSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
 		//{
