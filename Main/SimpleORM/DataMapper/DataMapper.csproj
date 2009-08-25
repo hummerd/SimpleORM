@@ -68,6 +68,7 @@
     <Compile Include="Exception\DataMapperException.cs" />
     <Compile Include="ExtractInfo.cs" />
     <Compile Include="IObjectBuilder.cs" />
+    <Compile Include="KeyInfo.cs" />
     <Compile Include="PropertySetterGenerator\DataMapperCodeGenerator.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
 
+
 namespace SimpleORM
 {
 	public class ExtractInfo
@@ -10,11 +11,14 @@ namespace SimpleORM
 		protected MethodInfo				_FillMethod;
 		protected List<string>			_PropColumns;
 		protected List<ExtractInfo>	_SubTypes;
+		protected KeyInfo					_PrimaryKeyInfo;
+		protected List<KeyInfo>			_ForeignKeysInfo;
 
 
 		public ExtractInfo()
 		{
 			_PropColumns = new List<string>();
+			_ForeignKeyTypes = new List<KeyInfo>();
 		}
 
 		
@@ -34,6 +38,18 @@ namespace SimpleORM
 		{
 			get { return _SubTypes; }
 			set { _SubTypes = value; }
+		}
+
+		public KeyInfo PrimaryKeyInfo
+		{
+			get { return _PrimaryKeyInfo; }
+			set { _PrimaryKeyInfo = value; }
+		}
+
+		public List<KeyInfo> ForeignKeysInfo
+		{
+			get { return _ForeignKeysInfo; }
+			set { _ForeignKeysInfo = value; }
 		}
 	}
 }

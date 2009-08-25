@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Data;
-using System.Reflection.Emit;
 using System.Reflection;
+using System.Reflection.Emit;
 using SimpleORM.Attributes;
-
 
 
 namespace SimpleORM.PropertySetterGenerator
@@ -23,9 +21,9 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			_ModuleBuilder = moduleBuilder;
 		}
+		
 
-
-		protected Type GenerateKeyType(string key, DataTable dtSource, List<string> columns, IPropertySetterGenerator methodGenerator, int schemeId)
+		public Type GenerateKeyType(string key, DataTable dtSource, List<string> columns, IPropertySetterGenerator methodGenerator, int schemeId)
 		{
 			string className = "DataPropertySetter_" + key;
 			var tb = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
@@ -114,6 +112,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			return tb.CreateType();
 		}
+		
 
 		protected bool GenerateCompareString(ILGenerator ilGen, FieldInfo field, Label lblRetFalse)
 		{ 

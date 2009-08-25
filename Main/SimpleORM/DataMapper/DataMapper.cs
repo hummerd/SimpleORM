@@ -125,6 +125,47 @@ namespace SimpleORM
 			}
 		}
 
+		public void FillObjectListComplex<TObject>(IList objectList, IDataReader reader, int schemeId, bool clearObjectCache)
+			where TObject : class
+		{
+			if (objectList == null)
+				throw new ArgumentException("Destination list can not be null.", "objectList");
+
+			if (reader == null)
+				throw new ArgumentException("Cannot fill objects from null.", "reader");
+
+			var objectType = typeof(TObject);
+			List<List<int>> columnIndexes = null;
+
+			//Create new cache only if we manage objects cache
+			//if (clearObjectCache)
+			//   _CreatedObjects = new Dictionary<DataRow, object>();
+			ExtractInfo extractInfo = null;
+
+			while (reader.Read())
+			{
+				if (extractInfo == null)
+				{
+					DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+					extractInfo = _DMCodeGenerator.GetSetterMethod(
+						objectType,
+						typeof(IDataReader),
+						schemeTable,
+						schemeId);
+
+					if (extractInfo == null || extractInfo.FillMethod == null)
+						throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+				}
+
+				object obj = _ObjectBuilder.CreateObject(objectType);
+				//Fill object
+				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+				objectList.Add(obj);
+			}
+		}
+
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
 			where TObject : class
 		{
@@ -354,7 +395,7 @@ namespace SimpleORM
 			if (result == null)
 				result = new List<List<int>>();
 
-			result.Add(ColumnsIndexes(table, extractInfo.PropColumns));
+			result.Add(GetColumnsIndexes(table, extractInfo.PropColumns));
 
 			foreach (var item in extractInfo.SubTypes)
 				GetSubColumnsIndexes(table, item, result);
@@ -362,7 +403,7 @@ namespace SimpleORM
 			return result;
 		}
 
-		protected List<int> ColumnsIndexes(DataTable table, List<string> columns)
+		protected List<int> GetColumnsIndexes(DataTable table, List<string> columns)
 		{
 			List<int> result = new List<int>(columns.Count);
 			for (int i = 0; i < columns.Count; i++)

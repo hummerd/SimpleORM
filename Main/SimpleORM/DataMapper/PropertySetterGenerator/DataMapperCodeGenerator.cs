@@ -196,11 +196,58 @@ namespace SimpleORM.PropertySetterGenerator
 					ilGen, targetClassType, schemeId, dtSource, GetMappingFromAtt, result);
 			}
 
-			typeBuilder.CreateType();
-			result.FillMethod = typeBuilder.Assembly.GetType(typeBuilder.FullName).
-				GetMethod("SetProps_" + targetClassType);
+			Type type = typeBuilder.CreateType();
+			result.FillMethod = type.GetMethod("SetProps_" + targetClassType);
+
+			//Extract info about primary Key
+			KeyInfo pk = GetPrimaryKey(targetClassType, schemeId);
+			if (pk != null)
+			{
+				result.PrimaryKeyInfo = GenerateKey(pk, schemeId, dtSource, methodGenerator);
+			}
+
+			//Extract info about foreign keys
+			List<KeyInfo> foreignKeys = GetForeignKeys(targetClassType, schemeId);
+			foreach (var item in foreignKeys)
+			{
+				result.ForeignKeysInfo.Add(
+					GenerateKey(pk, schemeId, dtSource, methodGenerator)
+					);
+			}
+
 			return result;
 		}
+
+		protected KeyInfo GetPrimaryKey(Type targetClassType, int schemeId)
+		{
+			throw new NotImplementedException();
+		}
+
+		protected List<KeyInfo> GetForeignKeys(Type targetClassType, int schemeId)
+		{
+			throw new NotImplementedException();
+		}
+
+		protected KeyInfo GenerateKey(KeyInfo pk, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		{
+			pk.KeyType = _KeyGenerator.GenerateKeyType(
+				pk.Name,
+				dtSource,
+				pk.Columns,
+				methodGenerator,
+				schemeId
+				);
+
+			pk.FillMethod = GenerateSetterMethod(
+				pk.KeyType,
+				schemeId,
+				dtSource,
+				methodGenerator
+				).FillMethod;
+
+			return pk;
+		}
+
 
 		/// <summary>
 		/// Get list of sub types assosiated with targetClassType. Sub type is type marked as complex in mapping schema.
