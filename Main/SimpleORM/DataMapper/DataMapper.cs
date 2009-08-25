@@ -139,9 +139,9 @@ namespace SimpleORM
 		}
 
 		protected void FillObjectsInternal(
-			IDataReader reader, 
-			Type objectType, 
-			int schemeId, 
+			IDataReader reader,
+			Type objectType,
+			int schemeId,
 			IList objectList)
 		{
 			List<List<int>> columnIndexes = null;
@@ -206,7 +206,13 @@ namespace SimpleORM
 			LinkObjects(tempResult, fkIndex);
 		}
 
-		protected bool ExtractFillInfo(IDataReader reader, Type objectType, int schemeId, out ExtractInfo extractInfo, out List<List<int>> columnIndexes, out bool topLevel)
+		protected bool ExtractFillInfo(
+			IDataReader reader,
+			Type objectType,
+			int schemeId,
+			out ExtractInfo extractInfo,
+			out List<List<int>> columnIndexes,
+			out bool topLevel)
 		{
 			topLevel = false;
 

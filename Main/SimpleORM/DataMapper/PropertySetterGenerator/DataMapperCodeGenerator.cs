@@ -40,6 +40,8 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
+
+
 		/// <summary>
 		/// Sets mapping definitions
 		/// </summary>
@@ -66,7 +68,27 @@ namespace SimpleORM.PropertySetterGenerator
 			_ExtractorCache.Clear();
 			_ModuleBuilder = null;
 		}
-		
+
+		public void GenerateExtractorMethod(ExtractInfo info, Type targetType)
+		{
+			ILGenerator ilGen = null;
+
+			Type type = typeof(Dictionary<,>).MakeGenericType(new Type[] 
+				{ info.PrimaryKeyInfo.KeyType, targetType });
+			LocalBuilder locPk = ilGen.DeclareLocal(type);
+
+			List<LocalBuilder> fkDicts = new List<LocalBuilder>();
+			foreach (var item in info.ForeignKeysInfo)
+			{
+				type = typeof(List<>).MakeGenericType(new Type[] { targetType });
+				type = typeof(Dictionary<,>).MakeGenericType(new Type[] { item.KeyType, type });
+
+				fkDicts.Add(ilGen.DeclareLocal(type));
+			}
+			
+			//ilGen.Emit();
+		}
+
 		/// <summary>
 		/// Returns setter method for specified type.
 		/// </summary>
