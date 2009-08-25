@@ -135,36 +135,104 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill objects from null.", "reader");
 
 			var objectType = typeof(TObject);
-			List<List<int>> columnIndexes = null;
-
-			//Create new cache only if we manage objects cache
-			//if (clearObjectCache)
-			//   _CreatedObjects = new Dictionary<DataRow, object>();
-			ExtractInfo extractInfo = null;
-
-			while (reader.Read())
-			{
-				if (extractInfo == null)
-				{
-					DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-					extractInfo = _DMCodeGenerator.GetSetterMethod(
-						objectType,
-						typeof(IDataReader),
-						schemeTable,
-						schemeId);
-
-					if (extractInfo == null || extractInfo.FillMethod == null)
-						throw new InvalidOperationException("Can not fill object without mapping definition.");
-
-					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
-				}
-
-				object obj = _ObjectBuilder.CreateObject(objectType);
-				//Fill object
-				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
-				objectList.Add(obj);
-			}
+			FillObjectsInternal(reader, objectType, schemeId, objectList);
 		}
+
+		protected void FillObjectsInternal(
+			IDataReader reader, 
+			Type objectType, 
+			int schemeId, 
+			IList objectList)
+		{
+			List<List<int>> columnIndexes = null;
+			ExtractInfo extractInfo = null;
+			bool topLevel = false;
+			Dictionary<string, Dictionary<object, object>> tempResult = new Dictionary<string, Dictionary<object, object>>(); //table name //pk //object
+			Dictionary<string, Dictionary<object, List<object>>> fkIndex = new Dictionary<string, Dictionary<object, List<object>>>(); //table name //pk //object
+
+			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
+			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
+
+			do
+			{
+				while (reader.Read())
+				{
+					if (extractInfo == null)
+					{
+						if (!ExtractFillInfo(reader, objectType, schemeId, out extractInfo, out columnIndexes, out topLevel))
+							break;
+					}
+
+					object obj = _ObjectBuilder.CreateObject(objectType);
+					//Fill object
+					CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+					//objectList.Add(obj);
+
+					object pk;
+					KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
+					if (pkInfo != null)
+					{
+						pk = _ObjectBuilder.CreateObject(pkInfo.KeyType);
+						CallExtractorMethod(pkInfo.FillMethod, pk, reader, columnIndexes);
+						pkObjects.Add(pk, obj);
+					}
+
+					List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
+					if (fkInfo.Count > 0)
+					{
+						foreach (var item in fkInfo)
+						{
+							object fk = _ObjectBuilder.CreateObject(item.KeyType);
+							CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
+
+							List<object> fko;
+							if (!fkObjects.TryGetValue(fk, out fko))
+							{
+								fko = new List<object>();
+								fkObjects.Add(fk, fko);
+							}
+
+							fko.Add(obj);
+						}
+					}
+
+					if (topLevel)
+					{
+						objectList.Add(obj);
+					}
+				}
+			} while (reader.NextResult());
+
+			LinkObjects(tempResult, fkIndex);
+		}
+
+		protected bool ExtractFillInfo(IDataReader reader, Type objectType, int schemeId, out ExtractInfo extractInfo, out List<List<int>> columnIndexes, out bool topLevel)
+		{
+			topLevel = false;
+
+			DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+			string tableName = String.IsNullOrEmpty(schemeTable.TableName) ? schemeTable.Columns[0].ColumnName : schemeTable.TableName;
+
+			extractInfo = _DMCodeGenerator.GetSetterMethod(
+				objectType,
+				typeof(IDataReader),
+				schemeTable,
+				schemeId);
+
+			if (extractInfo == null || extractInfo.FillMethod == null)
+				throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+			columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+
+			//if no pk and no fk and not top level object
+			if (extractInfo.PrimaryKeyInfo == null &&
+				 extractInfo.ForeignKeysInfo.Count <= 0 &&
+				!topLevel)
+				return false;
+
+			return true;
+		}
+
 
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
 			where TObject : class
@@ -316,6 +384,11 @@ namespace SimpleORM
 			return obj;
 		}
 
+
+		protected void LinkObjects(Dictionary<string, Dictionary<object, object>> tempResult, Dictionary<string, Dictionary<object, List<object>>> fkIndex)
+		{
+			throw new NotImplementedException();
+		}
 
 		protected void FillObjectListInternal<TRowItem>(IList objectList, Type objectType, ICollection dataCollection, int schemeId, DataRowExtractor<TRowItem> rowExtractor, bool clearObjectCache)
 		{

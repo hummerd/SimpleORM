@@ -18,7 +18,7 @@ namespace SimpleORM
 		public ExtractInfo()
 		{
 			_PropColumns = new List<string>();
-			_ForeignKeyTypes = new List<KeyInfo>();
+			_ForeignKeysInfo = new List<KeyInfo>();
 		}
 
 		
