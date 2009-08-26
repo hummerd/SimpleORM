@@ -40,8 +40,6 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-
-
 		/// <summary>
 		/// Sets mapping definitions
 		/// </summary>
@@ -75,13 +73,21 @@ namespace SimpleORM.PropertySetterGenerator
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetType,
 				MethodAttributes.Public | MethodAttributes.Static,
 				CallingConventions.Standard, typeof(void),
-				new Type[] { targetType, typeof(IDataReader), typeof(DataMapper), typeof(List<List<int>>), Type.GetType("System.Int32&") });
+				new Type[] { 
+					targetType,								// object
+					typeof(IDataReader),					// reader
+					typeof(DataMapper),					// mapper
+					typeof(List<List<int>>),			// columns
+					Type.GetType("System.Int32&"),	// columnSetIx
+					typeof(List<List<int>>),			// keyColumns
+				});
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
 			methodBuilder.DefineParameter(2, ParameterAttributes.In, "reader");
 			methodBuilder.DefineParameter(3, ParameterAttributes.In, "mapper");
 			methodBuilder.DefineParameter(4, ParameterAttributes.In, "columnsList");
 			methodBuilder.DefineParameter(5, ParameterAttributes.Out, "columnsIx");
+			methodBuilder.DefineParameter(6, ParameterAttributes.In, "keyColumns");
 
 			Type objListType = typeof(List<>).MakeGenericType(targetType);
 			ILGenerator ilGen = methodBuilder.GetILGenerator();
@@ -129,7 +135,6 @@ namespace SimpleORM.PropertySetterGenerator
 				locKeyDicts.Add(locKeyDict);
 			}
 			
-
 			Label lblStart = ilGen.DefineLabel();
 			ilGen.MarkLabel(lblStart);
 			
@@ -157,6 +162,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilGen.MarkLabel(lblNotTopLevel);
 
 			KeyInfo pkInfo = info.PrimaryKeyInfo;
+			int keyIx = 0;
 			if (pkInfo != null)
 			{			
 				LocalBuilder locPk = ilGen.DeclareLocal(info.PrimaryKeyInfo.KeyType);
@@ -166,8 +172,8 @@ namespace SimpleORM.PropertySetterGenerator
 				ilGen.Emit(OpCodes.Ldloc, locPk);	// object
 				ilGen.Emit(OpCodes.Ldarg_1);			// reader
 				ilGen.Emit(OpCodes.Ldarg_2);			// mapper
-				ilGen.Emit(OpCodes.Ldarg_3);			// columnsList
-				ilGen.Emit(OpCodes.Ldarg, 4);			// columnsIx
+				ilGen.Emit(OpCodes.Ldarg, 5);			// keyColumns
+				ilGen.Emit(OpCodes.Ldc_I4, keyIx++);// columnsIx
 				ilGen.Emit(OpCodes.Call, info.PrimaryKeyInfo.FillMethod);
 				
 				ilGen.Emit(OpCodes.Ldloc, locPkDict);
@@ -179,10 +185,6 @@ namespace SimpleORM.PropertySetterGenerator
 			//List<LocalBuilder> fkDicts = new List<LocalBuilder>();
 			for (int i = 0; i < info.ForeignKeysInfo.Count; i++)
 			{
-				//LocalBuilder locKey = ilGen.DeclareLocal(item.KeyType);
-				//LocalBuilder locKeyList = ilGen.DeclareLocal(typeof(List<>).MakeGenericType(item.KeyType));
-				//Type keyListType = typeof(List<>).MakeGenericType(targetType);
-				//LocalBuilder locKeyDict = ilGen.DeclareLocal(typeof(Dictionary<,>).MakeGenericType(item.KeyType, keyListType));
 				Label lblFkPresent = ilGen.DefineLabel();
 
 				ilGen.Emit(OpCodes.Newobj, info.ForeignKeysInfo[i].KeyType);
@@ -190,11 +192,11 @@ namespace SimpleORM.PropertySetterGenerator
 
 				//object fk = _ObjectBuilder.CreateObject(item.KeyType);
 				//CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
-				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
-				ilGen.Emit(OpCodes.Ldarg_1); // reader
-				ilGen.Emit(OpCodes.Ldarg_2); // mapper
-				ilGen.Emit(OpCodes.Ldarg_3); // columnsList
-				ilGen.Emit(OpCodes.Ldarg, 4); // columnsIx
+				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);	//object
+				ilGen.Emit(OpCodes.Ldarg_1);				// reader
+				ilGen.Emit(OpCodes.Ldarg_2);				// mapper
+				ilGen.Emit(OpCodes.Ldarg, 5);				// keyColumns
+				ilGen.Emit(OpCodes.Ldc_I4, keyIx++);	// columnsIx
 				ilGen.Emit(OpCodes.Call, info.ForeignKeysInfo[i].FillMethod);
 
 				//List<object> fko;
@@ -223,8 +225,6 @@ namespace SimpleORM.PropertySetterGenerator
 				ilGen.Emit(OpCodes.Ldloc, locKeyLists[i]);
 				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
 				//ilGen.Emit(OpCodes.Callvirt, _ListAdd);
-
-				//fkDicts.Add(ilGen.DeclareLocal(type));
 			}
 
 			ilGen.Emit(OpCodes.Ldarg_1);	// reader

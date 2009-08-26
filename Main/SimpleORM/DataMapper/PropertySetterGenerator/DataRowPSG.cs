@@ -104,7 +104,7 @@ namespace SimpleORM.PropertySetterGenerator
 			 *  int ix = list[columnsIx]['propIndex'];
 			 *  if (ix <= 0)
 			 *		val = DBNull.Value;
-			 *	else
+			 *	 else
 			 *		val = dataRow[ix];
 			 *		
 			 *  if (DBNull.Value 
