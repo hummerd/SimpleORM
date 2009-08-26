@@ -14,5 +14,8 @@ namespace SimpleORM
 			DataTable schemaTable, 
 			GetPropertyMapping getPropertyMapping,
 			ExtractInfo extractInfo);
+
+		Type DataSourceType
+		{ get; }
 	}
 }

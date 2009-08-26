@@ -71,22 +71,167 @@ namespace SimpleORM.PropertySetterGenerator
 
 		public void GenerateExtractorMethod(ExtractInfo info, Type targetType)
 		{
-			ILGenerator ilGen = null;
+			TypeBuilder typeBuilder = CreateAssemblyType(targetType);
+			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetType,
+				MethodAttributes.Public | MethodAttributes.Static,
+				CallingConventions.Standard, typeof(void),
+				new Type[] { targetType, typeof(IDataReader), typeof(DataMapper), typeof(List<List<int>>), Type.GetType("System.Int32&") });
 
-			Type type = typeof(Dictionary<,>).MakeGenericType(new Type[] 
-				{ info.PrimaryKeyInfo.KeyType, targetType });
-			LocalBuilder locPk = ilGen.DeclareLocal(type);
+			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
+			methodBuilder.DefineParameter(2, ParameterAttributes.In, "reader");
+			methodBuilder.DefineParameter(3, ParameterAttributes.In, "mapper");
+			methodBuilder.DefineParameter(4, ParameterAttributes.In, "columnsList");
+			methodBuilder.DefineParameter(5, ParameterAttributes.Out, "columnsIx");
 
-			List<LocalBuilder> fkDicts = new List<LocalBuilder>();
-			foreach (var item in info.ForeignKeysInfo)
+			Type objListType = typeof(List<>).MakeGenericType(targetType);
+			ILGenerator ilGen = methodBuilder.GetILGenerator();
+			LocalBuilder locObjBuilder = ilGen.DeclareLocal(typeof(IObjectBuilder));
+			LocalBuilder locObj = ilGen.DeclareLocal(targetType);
+
+			//Declare and init
+			Type pkType = null;
+			LocalBuilder locPkDict = null;
+
+			if (info.PrimaryKeyInfo != null)
 			{
-				type = typeof(List<>).MakeGenericType(new Type[] { targetType });
-				type = typeof(Dictionary<,>).MakeGenericType(new Type[] { item.KeyType, type });
+				pkType = info.PrimaryKeyInfo.KeyType;
+				Type pkDictType = typeof(Dictionary<,>).MakeGenericType(pkType, targetType);
+				locPkDict = ilGen.DeclareLocal(pkDictType);
 
-				fkDicts.Add(ilGen.DeclareLocal(type));
+				ilGen.Emit(OpCodes.Newobj, pkDictType);
+				ilGen.Emit(OpCodes.Stloc, locPkDict);
+				
+				ilGen.Emit(OpCodes.Ldarg, 123); //tempResult
+				ilGen.Emit(OpCodes.Ldloc, locPkDict);
+				ilGen.Emit(OpCodes.Stind_Ref);
 			}
 			
-			//ilGen.Emit();
+			List<LocalBuilder> locKeys = new List<LocalBuilder>();
+			List<LocalBuilder> locKeyLists = new List<LocalBuilder>();
+			List<LocalBuilder> locKeyDicts = new List<LocalBuilder>();
+
+			foreach (var item in info.ForeignKeysInfo)
+			{
+				LocalBuilder locKey = ilGen.DeclareLocal(item.KeyType);
+				LocalBuilder locKeyList = ilGen.DeclareLocal(typeof(List<>).MakeGenericType(item.KeyType));
+				Type fkDictType = typeof(Dictionary<,>).MakeGenericType(item.KeyType, objListType);
+				LocalBuilder locKeyDict = ilGen.DeclareLocal(fkDictType);
+
+				ilGen.Emit(OpCodes.Newobj, fkDictType);
+				ilGen.Emit(OpCodes.Stloc, locKeyDict);
+
+				ilGen.Emit(OpCodes.Ldarg, 124); //fkIndex
+				ilGen.Emit(OpCodes.Ldloc, locKeyDict);
+				//ilGen.Emit(OpCodes.Callvirt, _ListAdd);
+
+				locKeys.Add(locKey);
+				locKeyLists.Add(locKeyList);
+				locKeyDicts.Add(locKeyDict);
+			}
+			
+
+			Label lblStart = ilGen.DefineLabel();
+			ilGen.MarkLabel(lblStart);
+			
+			ilGen.Emit(OpCodes.Ldloc, locObjBuilder);
+			//ilGen.Emit(OpCodes.Callvirt, _CreateObject);
+			ilGen.Emit(OpCodes.Stloc, locObj);
+
+			ilGen.Emit(OpCodes.Ldloc, locObj);	// object
+			ilGen.Emit(OpCodes.Ldarg_1);			// reader
+			ilGen.Emit(OpCodes.Ldarg_2);			// mapper
+			ilGen.Emit(OpCodes.Ldarg_3);			// columnsList
+			ilGen.Emit(OpCodes.Ldarg, 4);			// columnsIx
+			ilGen.Emit(OpCodes.Call, info.FillMethod);
+
+			//if (topLevel)
+			//{
+			//   objectList.Add(obj);
+			//}
+			Label lblNotTopLevel = ilGen.DefineLabel();
+			ilGen.Emit(OpCodes.Ldarg, 5); // topLevel
+			ilGen.Emit(OpCodes.Brfalse, lblNotTopLevel); // topLevel
+			ilGen.Emit(OpCodes.Ldarg, 6); // objectList
+			ilGen.Emit(OpCodes.Ldloc, locObj);
+			//ilGen.Emit(OpCodes.Callvirt, _ListAdd);
+			ilGen.MarkLabel(lblNotTopLevel);
+
+			KeyInfo pkInfo = info.PrimaryKeyInfo;
+			if (pkInfo != null)
+			{			
+				LocalBuilder locPk = ilGen.DeclareLocal(info.PrimaryKeyInfo.KeyType);
+				ilGen.Emit(OpCodes.Newobj, info.PrimaryKeyInfo.KeyType);
+				ilGen.Emit(OpCodes.Stloc, locPk);
+
+				ilGen.Emit(OpCodes.Ldloc, locPk);	// object
+				ilGen.Emit(OpCodes.Ldarg_1);			// reader
+				ilGen.Emit(OpCodes.Ldarg_2);			// mapper
+				ilGen.Emit(OpCodes.Ldarg_3);			// columnsList
+				ilGen.Emit(OpCodes.Ldarg, 4);			// columnsIx
+				ilGen.Emit(OpCodes.Call, info.PrimaryKeyInfo.FillMethod);
+				
+				ilGen.Emit(OpCodes.Ldloc, locPkDict);
+				ilGen.Emit(OpCodes.Ldloc, locPk);
+				ilGen.Emit(OpCodes.Ldloc, locObj);
+				//ilGen.Emit(OpCodes.Callvirt, _DictAdd);
+			}
+			
+			//List<LocalBuilder> fkDicts = new List<LocalBuilder>();
+			for (int i = 0; i < info.ForeignKeysInfo.Count; i++)
+			{
+				//LocalBuilder locKey = ilGen.DeclareLocal(item.KeyType);
+				//LocalBuilder locKeyList = ilGen.DeclareLocal(typeof(List<>).MakeGenericType(item.KeyType));
+				//Type keyListType = typeof(List<>).MakeGenericType(targetType);
+				//LocalBuilder locKeyDict = ilGen.DeclareLocal(typeof(Dictionary<,>).MakeGenericType(item.KeyType, keyListType));
+				Label lblFkPresent = ilGen.DefineLabel();
+
+				ilGen.Emit(OpCodes.Newobj, info.ForeignKeysInfo[i].KeyType);
+				ilGen.Emit(OpCodes.Stloc, locKeys[i]);
+
+				//object fk = _ObjectBuilder.CreateObject(item.KeyType);
+				//CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
+				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
+				ilGen.Emit(OpCodes.Ldarg_1); // reader
+				ilGen.Emit(OpCodes.Ldarg_2); // mapper
+				ilGen.Emit(OpCodes.Ldarg_3); // columnsList
+				ilGen.Emit(OpCodes.Ldarg, 4); // columnsIx
+				ilGen.Emit(OpCodes.Call, info.ForeignKeysInfo[i].FillMethod);
+
+				//List<object> fko;
+				//if (!fkObjects.TryGetValue(fk, out fko))
+				//{
+				//   fko = new List<object>();
+				//   fkObjects.Add(fk, fko);
+				//}
+				//
+				//fko.Add(obj);
+				ilGen.Emit(OpCodes.Ldloc, locKeyDicts[i]);
+				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
+				ilGen.Emit(OpCodes.Ldloca, locKeyLists[i]);
+				//ilGen.Emit(OpCodes.Callvirt, _TryGetValue);
+				ilGen.Emit(OpCodes.Brtrue, lblFkPresent); //br to fko.Add(obj);
+				ilGen.Emit(OpCodes.Newobj, objListType);
+				ilGen.Emit(OpCodes.Stloc, locKeyLists[i]);
+
+				ilGen.Emit(OpCodes.Ldloc, locKeyDicts[i]);
+				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
+				ilGen.Emit(OpCodes.Ldloc, locKeyLists[i]);
+				//ilGen.Emit(OpCodes.Callvirt, _DictAdd);
+
+				ilGen.MarkLabel(lblFkPresent);
+
+				ilGen.Emit(OpCodes.Ldloc, locKeyLists[i]);
+				ilGen.Emit(OpCodes.Ldloc, locKeys[i]);
+				//ilGen.Emit(OpCodes.Callvirt, _ListAdd);
+
+				//fkDicts.Add(ilGen.DeclareLocal(type));
+			}
+
+			ilGen.Emit(OpCodes.Ldarg_1);	// reader
+			//ilGen.Emit(OpCodes.Callvirt, _Read);
+			ilGen.Emit(OpCodes.Brtrue, lblStart);
+
+			ilGen.Emit(OpCodes.Ret);
 		}
 
 		/// <summary>
@@ -204,7 +349,8 @@ namespace SimpleORM.PropertySetterGenerator
 
 			//Generating Type and method declaration
 			TypeBuilder typeBuilder = CreateAssemblyType(targetClassType);
-			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(targetClassType, typeBuilder);
+			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(
+				targetClassType, typeBuilder, methodGenerator.DataSourceType);
 			ILGenerator ilGen = methodBuilder.GetILGenerator();
 
 			if (_XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId))
@@ -242,12 +388,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected KeyInfo GetPrimaryKey(Type targetClassType, int schemeId)
 		{
-			throw new NotImplementedException();
+			return null;
 		}
 
 		protected List<KeyInfo> GetForeignKeys(Type targetClassType, int schemeId)
 		{
-			throw new NotImplementedException();
+			return new List<KeyInfo>();
 		}
 
 		protected KeyInfo GenerateKey(KeyInfo pk, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
@@ -338,12 +484,15 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="targetClassType"></param>
 		/// <param name="typeBuilder"></param>
 		/// <returns></returns>
-		protected MethodBuilder GenerateSetterMethodDefinition(Type targetClassType, TypeBuilder typeBuilder)
+		protected MethodBuilder GenerateSetterMethodDefinition(
+			Type targetClassType, 
+			TypeBuilder typeBuilder,
+			Type dataSourceType)
 		{
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetClassType,
 				MethodAttributes.Public | MethodAttributes.Static,
 				CallingConventions.Standard, typeof(void),
-				new Type[] { targetClassType, typeof(object), typeof(DataMapper), typeof(List<List<int>>), Type.GetType("System.Int32&") });
+				new Type[] { targetClassType, dataSourceType, typeof(DataMapper), typeof(List<List<int>>), Type.GetType("System.Int32&") });
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
 			methodBuilder.DefineParameter(2, ParameterAttributes.In, "row");

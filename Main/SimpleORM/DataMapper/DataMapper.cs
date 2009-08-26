@@ -155,55 +155,73 @@ namespace SimpleORM
 
 			do
 			{
-				while (reader.Read())
-				{
-					if (extractInfo == null)
-					{
-						if (!ExtractFillInfo(reader, objectType, schemeId, out extractInfo, out columnIndexes, out topLevel))
-							break;
-					}
+				bool hasData = reader.Read();
+				if (!hasData)
+					continue;
 
-					object obj = _ObjectBuilder.CreateObject(objectType);
-					//Fill object
-					CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
-					//objectList.Add(obj);
+				ExtractFillInfo(reader, objectType, schemeId, out extractInfo, out columnIndexes, out topLevel);
 
-					object pk;
-					KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
-					if (pkInfo != null)
-					{
-						pk = _ObjectBuilder.CreateObject(pkInfo.KeyType);
-						CallExtractorMethod(pkInfo.FillMethod, pk, reader, columnIndexes);
-						pkObjects.Add(pk, obj);
-					}
 
-					List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
-					if (fkInfo.Count > 0)
-					{
-						foreach (var item in fkInfo)
-						{
-							object fk = _ObjectBuilder.CreateObject(item.KeyType);
-							CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
-
-							List<object> fko;
-							if (!fkObjects.TryGetValue(fk, out fko))
-							{
-								fko = new List<object>();
-								fkObjects.Add(fk, fko);
-							}
-
-							fko.Add(obj);
-						}
-					}
-
-					if (topLevel)
-					{
-						objectList.Add(obj);
-					}
-				}
 			} while (reader.NextResult());
 
 			LinkObjects(tempResult, fkIndex);
+		}
+
+		protected void ExtractObjects(
+			IDataReader reader,
+			Type objectType,
+			int schemeId,
+			ExtractInfo extractInfo,
+			out IDictionary tempResult,
+			List<IDictionary> fkIndex,
+			List<List<int>> columnIndexes,
+			IList objectList,
+			bool topLevel)
+		{
+			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
+			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
+
+			do
+			{
+				object obj = _ObjectBuilder.CreateObject(objectType);
+				//Fill object
+				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+
+				KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
+				if (pkInfo != null)
+				{
+					object pk = _ObjectBuilder.CreateObject<DataTable>();
+					CallExtractorMethod(pkInfo.FillMethod, pk, reader, columnIndexes);
+					pkObjects.Add(pk, obj);
+				}
+
+				List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
+				if (fkInfo.Count > 0)
+				{
+					foreach (var item in fkInfo)
+					{
+						object fk = _ObjectBuilder.CreateObject(item.KeyType);
+						CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
+
+						List<object> fko;
+						if (!fkObjects.TryGetValue(fk, out fko))
+						{
+							fko = new List<object>();
+							fkObjects.Add(fk, fko);
+						}
+
+						fko.Add(obj);
+					}
+				}
+
+				if (topLevel)
+				{
+					objectList.Add(obj);
+				}
+			} while (reader.Read());
+
+			tempResult = pkObjects;
+			fkIndex.Add(fkObjects);
 		}
 
 		protected bool ExtractFillInfo(

@@ -17,7 +17,7 @@ namespace SimpleORM.PropertySetterGenerator
 		protected static MethodInfo _ChangeType = typeof(Convert).GetMethod("ChangeType", new Type[] { typeof(object), typeof(Type) });
 		protected static MethodInfo _GetType = typeof(Type).GetMethod("GetTypeFromHandle");
 		protected static MethodInfo _GetObjectBuilder = typeof(DataMapper).GetMethod("get_ObjectBuilder");
-		protected static MethodInfo _CreateObject = typeof(IObjectBuilder).GetMethod("CreateObject");
+		protected static MethodInfo _CreateObject = typeof(IObjectBuilder).GetMethod("CreateObject", new Type[] {typeof(Type)});
 
 
 		protected enum SetterType

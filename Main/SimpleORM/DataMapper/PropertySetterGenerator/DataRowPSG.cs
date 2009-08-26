@@ -38,6 +38,14 @@ namespace SimpleORM.PropertySetterGenerator
 				true);
 		}
 
+		public Type DataSourceType
+		{
+			get
+			{
+				return typeof(DataRow);
+			}
+		}
+
 
 		protected override void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
 		{
