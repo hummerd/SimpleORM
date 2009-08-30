@@ -509,7 +509,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="prop"></param>
 		/// <param name="schemeId"></param>
 		/// <returns></returns>
-		protected DataMapAttribute GetMappingFromAtt(PropertyInfo prop, int schemeId)
+		protected DataMapAttribute GetMappingFromAtt(MemberInfo prop, int schemeId)
 		{
 			object[] attrs = prop.GetCustomAttributes(true);
 			if (attrs != null && attrs.Length > 0)
@@ -537,7 +537,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="prop"></param>
 		/// <param name="schemeId"></param>
 		/// <returns></returns>
-		protected DataMapAttribute GetMappingFromXml(PropertyInfo prop, int schemeId)
+		protected DataMapAttribute GetMappingFromXml(MemberInfo prop, int schemeId)
 		{
 			//Looking for node in reflected type
 			XmlNode xmlMapping = FindMapping(prop.ReflectedType, schemeId, prop);
@@ -586,7 +586,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="schemeId"></param>
 		/// <param name="prop"></param>
 		/// <returns></returns>
-		protected XmlNode FindMapping(Type propType, int schemeId, PropertyInfo prop)
+		protected XmlNode FindMapping(Type propType, int schemeId, MemberInfo prop)
 		{
 			//Generate XPath Query
 			string qry = "/MappingDefinition/TypeMapping{0}/PropetyMapping{1}";

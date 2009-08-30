@@ -43,63 +43,39 @@ namespace SimpleORM.PropertySetterGenerator
 			bool generateExtractNested)
 		{
 			List<PropertyInfo> props = GetProps(targetClassType);
-
-			int propIndex = 0;
-			int complexPropIndex = 0;
-
 			GenerateMethodHeader(ilOut);
 
 			Debug.WriteLine("GenerateSetterMethod for " + targetClassType.Name);
 
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
+			GenerateSimplePropsSetter(
+				props,
+				ilOut,
+				targetClassType,
+				schemeId,
+				schemaTable,
+				getPropertyMapping,
+				extractInfo,
+				generateExtractNested);
 
-				if (mapping.GetType() == typeof(DataColumnMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+			GenerateNestedPropsSetter(
+				props,
+				ilOut,
+				targetClassType,
+				schemeId,
+				schemaTable,
+				getPropertyMapping,
+				extractInfo,
+				generateExtractNested);
 
-					CreateExtractScalar(
-						ilOut,
-						targetClassType,
-						prop,
-						mapping as DataColumnMapAttribute,
-						schemaTable,
-						propIndex++);
-
-					extractInfo.PropColumns.Add(mapping.MappingName);
-				}
-				else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
-
-					CreateExtractNested(
-						ilOut,
-						targetClassType,
-						prop,
-						mapping as DataRelationMapAttribute);
-				}
-			}
-
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + prop.PropertyType.Name);
-
-					GenerateExtractComplex(
-						ilOut,
-						prop,
-						extractInfo.SubTypes[complexPropIndex++].FillMethod);
-				}
-			}
-
+			GenerateSimpleFieldSetter(
+				ilOut,
+				targetClassType,
+				schemeId,
+				schemaTable,
+				getPropertyMapping,
+				extractInfo,
+				generateExtractNested);
+			
 			ilOut.Emit(OpCodes.Ret);
 		}
 
@@ -125,9 +101,135 @@ namespace SimpleORM.PropertySetterGenerator
 			return new List<PropertyInfo>(distinctProps.Values);
 		}
 
-		protected abstract void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex);
+		protected void GenerateSimplePropsSetter(
+			IEnumerable<PropertyInfo> props,
+			ILGenerator ilOut,
+			Type targetClassType,
+			int schemeId,
+			DataTable schemaTable,
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo,
+			bool generateExtractNested
+			)
+		{
+			int propIndex = 0;
 
-		protected abstract void CreateExtractNested(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataRelationMapAttribute mapping);
+			foreach (PropertyInfo prop in props)
+			{
+				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
+				if (mapping == null)
+					continue;
+
+				if (mapping.GetType() == typeof(DataColumnMapAttribute))
+				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+					CreateExtractScalar(
+						ilOut,
+						targetClassType,
+						prop,
+						null,
+						mapping as DataColumnMapAttribute,
+						schemaTable,
+						propIndex++);
+
+					extractInfo.PropColumns.Add(mapping.MappingName);
+				}
+				else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
+				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+					CreateExtractNested(
+						ilOut,
+						targetClassType,
+						prop,
+						mapping as DataRelationMapAttribute);
+				}
+			}
+		}
+
+		protected void GenerateNestedPropsSetter(
+			IEnumerable<PropertyInfo> props,
+			ILGenerator ilOut,
+			Type targetClassType,
+			int schemeId,
+			DataTable schemaTable,
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo,
+			bool generateExtractNested
+			)
+		{
+			int complexPropIndex = 0;
+			foreach (PropertyInfo prop in props)
+			{
+				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
+				if (mapping == null)
+					continue;
+
+				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
+				{
+					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + prop.PropertyType.Name);
+
+					GenerateExtractComplex(
+						ilOut,
+						prop,
+						extractInfo.SubTypes[complexPropIndex++].FillMethod);
+				}
+			}
+		}
+
+		protected void GenerateSimpleFieldSetter(
+			ILGenerator ilOut,
+			Type targetClassType,
+			int schemeId,
+			DataTable schemaTable,
+			GetPropertyMapping getPropertyMapping,
+			ExtractInfo extractInfo,
+			bool generateExtractNested
+		)
+		{
+			int propIndex = 0;
+			FieldInfo[] fields = targetClassType.GetFields();
+
+			foreach (FieldInfo field in fields)
+			{
+				DataMapAttribute mapping = getPropertyMapping(field, schemeId);
+				if (mapping == null)
+					continue;
+
+				if (mapping.GetType() == typeof(DataColumnMapAttribute))
+				{
+					Debug.WriteLine("Property " + field.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+					CreateExtractScalar(
+						ilOut,
+						targetClassType,
+						null,
+						field,
+						mapping as DataColumnMapAttribute,
+						schemaTable,
+						propIndex++);
+
+					extractInfo.PropColumns.Add(mapping.MappingName);
+				}
+			}
+		}
+
+
+		protected abstract void CreateExtractScalar(
+			ILGenerator ilOut, 
+			Type targetClassType, 
+			PropertyInfo prop,
+			FieldInfo field,
+			DataColumnMapAttribute mapping, 
+			DataTable schemaTable, 
+			int propIndex);
+
+		protected abstract void CreateExtractNested(
+			ILGenerator ilOut, 
+			Type targetClassType, 
+			PropertyInfo prop, 
+			DataRelationMapAttribute mapping);
 
 
 		protected void GenerateMethodHeader(ILGenerator ilOut)

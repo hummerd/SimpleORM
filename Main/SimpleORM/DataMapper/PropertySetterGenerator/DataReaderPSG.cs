@@ -60,7 +60,14 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected override void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
+		protected override void CreateExtractScalar(
+			ILGenerator ilOut, 
+			Type targetClassType, 
+			PropertyInfo prop, 
+			FieldInfo field,
+			DataColumnMapAttribute mapping, 
+			DataTable schemaTable, 
+			int propIndex)
 		{
 			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
 			if (column < 0)
@@ -95,12 +102,32 @@ namespace SimpleORM.PropertySetterGenerator
 			bool readerMethodExist = _ReaderGetMethods.ContainsKey(dbType);
 			bool useDirectSet = readerMethodExist && prop.PropertyType == dbType;
 
-			if (setterType == SetterType.Nullable && prop.PropertyType.GetGenericArguments()[0] == dbType)
-				GenerateSetDirect(ilOut, propIndex, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], dbType);
+			if (setterType == SetterType.Nullable && 
+				prop.PropertyType.GetGenericArguments()[0] == dbType)
+				GenerateSetDirect(
+					ilOut, 
+					propIndex, 
+					targetProp,
+					field,
+					prop.PropertyType, 
+					_ReaderGetMethods[dbType], 
+					dbType);
 			else if (setterType == SetterType.NullableNI)
-				CreateSetNotNullValueFromSubType(ilOut, propIndex, targetProp, prop.PropertyType, prop.PropertyType.GetGenericArguments()[0]);
+				CreateSetNotNullValueFromSubType(
+					ilOut, 
+					propIndex, 
+					targetProp, 
+					prop.PropertyType, 
+					prop.PropertyType.GetGenericArguments()[0]);
 			else if (useDirectSet)
-				GenerateSetDirect(ilOut, propIndex, targetProp, prop.PropertyType, _ReaderGetMethods[dbType], null);
+				GenerateSetDirect(
+					ilOut, 
+					propIndex, 
+					targetProp,
+					field,
+					prop.PropertyType, 
+					_ReaderGetMethods[dbType], 
+					null);
 			else
 				CreateSetNotNullValue(ilOut, propIndex, targetProp, prop.PropertyType);
 			
@@ -165,7 +192,14 @@ namespace SimpleORM.PropertySetterGenerator
 			//ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
 		}
 
-		protected void GenerateSetDirect(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType, MethodInfo readerGetMethod, Type subType)
+		protected void GenerateSetDirect(
+			ILGenerator ilOut, 
+			int propIndex, 
+			MethodInfo setProp,
+			FieldInfo field,
+			Type propType, 
+			MethodInfo readerGetMethod, 
+			Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldarg_1);
@@ -184,7 +218,10 @@ namespace SimpleORM.PropertySetterGenerator
 			if (subType != null)
 				ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
 
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			if (field != null)
+				ilOut.Emit(OpCodes.Stfld, field);
+			else
+				ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
 		protected void CreateSetNotNullValue(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType)

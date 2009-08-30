@@ -47,7 +47,14 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected override void CreateExtractScalar(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataColumnMapAttribute mapping, DataTable schemaTable, int propIndex)
+		protected override void CreateExtractScalar(
+			ILGenerator ilOut, 
+			Type targetClassType, 
+			PropertyInfo prop,
+			FieldInfo field,
+			DataColumnMapAttribute mapping, 
+			DataTable schemaTable, 
+			int propIndex)
 		{
 			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
 			if (column < 0)
