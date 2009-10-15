@@ -155,27 +155,36 @@ namespace SimpleORM
 			IList objectList)
 		{
 			List<List<int>> columnIndexes = null;
-			ExtractInfo extractInfo = null;
-			bool topLevel = false;
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
+			//bool topLevel = false;
 			Dictionary<string, Dictionary<object, object>> tempResult = new Dictionary<string, Dictionary<object, object>>(); //table name //pk //object
 			Dictionary<string, Dictionary<object, List<object>>> fkIndex = new Dictionary<string, Dictionary<object, List<object>>>(); //table name //pk //object
 
 			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
 			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
 
+			int tableIx = 0;
 			do
 			{
 				bool hasData = reader.Read();
 				if (!hasData)
 					continue;
 
-				//ExtractFillInfo(
-				//   reader, 
-				//   objectType, 
-				//   schemeId, 
-				//   out extractInfo, 
-				//   out columnIndexes, 
-				//   out topLevel);
+				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+				bool topLevel =
+					extractInfo.TableID == tableIx ||
+					extractInfo.TableName == schemeTable.Columns[0].ColumnName;
+
+				Dictionary<object, object> tr;
+				ExtractObjects(
+				   reader,
+				   objectType,
+				   schemeId,
+				   extractInfo,
+				   out tr,
+				   null,
+				   columnIndexes,
+				   topLevel ? objectList : null);
 
 
 			} while (reader.NextResult());
@@ -188,11 +197,11 @@ namespace SimpleORM
 			Type objectType,
 			int schemeId,
 			ExtractInfo extractInfo,
-			out IDictionary tempResult,
+			out Dictionary<object, object> tempResult,
 			List<IDictionary> fkIndex,
 			List<List<int>> columnIndexes,
-			IList objectList,
-			bool topLevel)
+			IList objectList
+			)
 		{
 			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
 			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
@@ -231,7 +240,7 @@ namespace SimpleORM
 					}
 				}
 
-				if (topLevel)
+				if (objectList != null)
 				{
 					objectList.Add(obj);
 				}
@@ -240,47 +249,7 @@ namespace SimpleORM
 			tempResult = pkObjects;
 			fkIndex.Add(fkObjects);
 		}
-
-		//protected bool ExtractFillInfo(
-		//   IDataReader reader,
-		//   Type objectType,
-		//   int schemeId,
-		//   int tableIx,
-		//   out ExtractInfo extractInfo,
-		//   out List<List<int>> columnIndexes,
-		//   out bool topLevel)
-		//{
-		//   topLevel = false;
-
-		//   DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-		//   string tableName = String.IsNullOrEmpty(schemeTable.TableName) ? schemeTable.Columns[0].ColumnName : schemeTable.TableName;
-
-		//   extractInfo = _DMCodeGenerator.GetSetterMethod(
-		//      objectType,
-		//      typeof(IDataReader),
-		//      schemeTable,
-		//      schemeId);
-
-		//   if (extractInfo == null || extractInfo.FillMethod == null)
-		//      throw new InvalidOperationException("Can not fill object without mapping definition.");
-
-		//   if (extractInfo.TableID >= 0 && extractInfo.TableID == tableIx)
-		//      topLevel = true;
-		//   else if (!String.IsNullOrEmpty(extractInfo.TableName) && extractInfo.TableName == tableName)
-		//      topLevel = true;
-
-		//   columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
-
-		//   //if no pk and no fk and not top level object
-		//   if (extractInfo.PrimaryKeyInfo == null &&
-		//       extractInfo.ForeignKeysInfo.Count <= 0 &&
-		//      !topLevel)
-		//      return false;
-
-		//   return true;
-		//}
-
-
+		
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
 			where TObject : class
 		{
