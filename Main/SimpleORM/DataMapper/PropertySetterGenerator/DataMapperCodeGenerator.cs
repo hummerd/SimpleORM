@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
@@ -6,7 +7,6 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Xml;
 using SimpleORM.Attributes;
-using System.Collections;
 using SimpleORM.Exception;
 
 
@@ -16,16 +16,11 @@ namespace SimpleORM.PropertySetterGenerator
 	{
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
 					
-		//protected readonly
-		//   Dictionary<Type,		//target object type (Entity type)
-		//      Dictionary<Type,	//extractor type DataTable or IDataReader
-		//         Dictionary<int, ExtractInfo>>> _ExtractorCache = new Dictionary<Type, Dictionary<Type, Dictionary<int, ExtractInfo>>>();
-
 		protected ModuleBuilder		_ModuleBuilder;
 		protected AssemblyBuilder	_AsmBuilder;
 		protected Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
 		protected XmlDocument		_XmlDocument;
-		protected string				_ConfigFile;
+		protected string			_ConfigFile;
 		protected KeyClassGenerator _KeyGenerator;
 
 
@@ -34,8 +29,8 @@ namespace SimpleORM.PropertySetterGenerator
 			if (setterGenerators == null)
 			{
 				_SetterGenerators = new Dictionary<Type, IPropertySetterGenerator>(2);
-				_SetterGenerators.Add(typeof(DataTable), new DataRowPSG());
-				_SetterGenerators.Add(typeof(IDataReader), new DataReaderPSG());
+				_SetterGenerators.Add(DataTablePSG.TypeOfDataSource, new DataTablePSG());
+				_SetterGenerators.Add(DataReaderPSG.TypeOfDataSource, new DataReaderPSG());
 			}
 			else
 			{
@@ -409,6 +404,7 @@ namespace SimpleORM.PropertySetterGenerator
 					);
 			}
 
+			ilGen.Emit(OpCodes.Ret);
 			Type type = typeBuilder.CreateType();
 			extractInfo.FillMethod[methodGenerator.DataSourceType] = type.GetMethod("SetProps_" + extractInfo.TargetType);
 
@@ -435,8 +431,6 @@ namespace SimpleORM.PropertySetterGenerator
 
 			return extractInfo;
 		}
-
-
 
 
 		protected GetPropertyMapping GetMappingMethod(Type targetClassType, int schemeId)
@@ -525,82 +519,6 @@ namespace SimpleORM.PropertySetterGenerator
 
 			return pk;
 		}
-
-
-		/// <summary>
-		/// Get list of sub types assosiated with targetClassType. Sub type is type marked as complex in mapping schema.
-		/// </summary>
-		/// <param name="targetClassType"></param>
-		/// <param name="schemeId"></param>
-		/// <param name="dtSource"></param>
-		/// <param name="methodGenerator"></param>
-		/// <returns></returns>
-		//protected List<ExtractInfo> GetSubTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
-		//{
-		//   List<ExtractInfo> result = new List<ExtractInfo>();
-
-		//   //bool useXmlMapping = IsXmlMappingExists(targetClassType, schemeId);
-		//   List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
-
-		//   foreach (PropertyInfo prop in props)
-		//   {
-		//      ComplexDataMapAttribute mapping = GetMappingMethod(targetClassType, schemeId)
-		//         (prop, schemeId) as ComplexDataMapAttribute;
-
-		//      if (mapping == null)
-		//         continue;
-
-		//      if (mapping.ItemType == null)
-		//         mapping.ItemType = prop.PropertyType;
-
-		//      result.Add(
-		//         GenerateSetterMethod(
-		//            mapping.ItemType,
-		//            mapping.NestedSchemeId,
-		//            dtSource,
-		//            methodGenerator));
-		//   }
-
-		//   return result;
-		//}
-
-		///// <summary>
-		///// Get list of child objects assosiated with targetClassType.
-		///// </summary>
-		///// <param name="targetClassType"></param>
-		///// <param name="schemeId"></param>
-		///// <param name="dtSource"></param>
-		///// <param name="methodGenerator"></param>
-		///// <returns></returns>
-		//protected List<ExtractInfo> GetNestedTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
-		//{
-		//   List<ExtractInfo> result = new List<ExtractInfo>();
-
-		//   bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
-		//   List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
-
-		//   foreach (PropertyInfo prop in props)
-		//   {
-		//      ComplexDataMapAttribute mapping = useXmlMapping ?
-		//         GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute :
-		//         GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
-
-		//      if (mapping == null)
-		//         continue;
-
-		//      if (mapping.ItemType == null)
-		//         mapping.ItemType = prop.PropertyType;
-
-		//      result.Add(
-		//         GenerateSetterMethod(
-		//            mapping.ItemType,
-		//            mapping.NestedSchemeId,
-		//            dtSource,
-		//            methodGenerator));
-		//   }
-
-		//   return result;
-		//}
 
 		/// <summary>
 		/// Creates dynamic assembly for holding generated type with setter methods.

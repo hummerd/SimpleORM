@@ -73,7 +73,7 @@
     <Compile Include="PropertySetterGenerator\ExtractorInfoCache.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PropertySetterGenerator\DataRowPSG.cs" />
+    <Compile Include="PropertySetterGenerator\DataTablePSG.cs" />
     <Compile Include="PropertySetterGenerator\DataReaderPSG.cs" />
     <Compile Include="PropertySetterGenerator\KeyClassGenerator.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />

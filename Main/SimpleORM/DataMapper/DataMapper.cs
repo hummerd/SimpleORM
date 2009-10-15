@@ -109,7 +109,7 @@ namespace SimpleORM
 				throw new InvalidOperationException("Can not fill object without mapping definition.");
 
 			MethodInfo method = null;
-			extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out method);
+			extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method);
 
 			while (reader.Read())
 			{
@@ -119,10 +119,10 @@ namespace SimpleORM
 					_DMCodeGenerator.GenerateSetterMethod(
 						extractInfo,
 						schemeTable,
-						typeof(IDataReader)
+						DataReaderPSG.TypeOfDataSource
 						);
 
-					if (!extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out method))
+					if (!extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method))
 						throw new InvalidOperationException("Failed to create setter method.");
 
 					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
@@ -198,7 +198,7 @@ namespace SimpleORM
 			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
 			KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
 			List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
-			MethodInfo method = extractInfo.FillMethod[typeof(IDataReader)];
+			MethodInfo method = extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource];
 
 			do
 			{
@@ -309,7 +309,7 @@ namespace SimpleORM
 				objectType,
 				schemeId,
 				schemeTable,
-				typeof(IDataReader)
+				DataReaderPSG.TypeOfDataSource
 				);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
@@ -322,7 +322,7 @@ namespace SimpleORM
 			List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
 			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod[typeof(IDataReader)], obj, reader, columnIndexes);
+			CallExtractorMethod(extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource], obj, reader, columnIndexes);
 			return obj;
 		}
 
@@ -414,10 +414,11 @@ namespace SimpleORM
 				objectType,
 				schemeId,
 				dataRow.Table,
-				typeof(DataTable)
+				DataTablePSG.TypeOfDataSource
 				);
 
-			if (extractInfo == null || extractInfo.FillMethod == null)
+			MethodInfo extractMethod;
+			if (extractInfo == null || !extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod))
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
 			_CreatedObjects = new Dictionary<DataRow, object>(1);
@@ -429,7 +430,7 @@ namespace SimpleORM
 				obj = _ObjectBuilder.CreateObject(objectType);
 
 			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod[typeof(DataTable)], obj, dataRow, columnIndexes);
+			CallExtractorMethod(extractMethod, obj, dataRow, columnIndexes);
 			return obj;
 		}
 
@@ -455,11 +456,10 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill object of unknown type null.", "objectType");
 
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
-
 			MethodInfo extractMethod = null;
-			extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out extractMethod);
-			
-			List<List<int>> columnIndexes = null;
+			extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod);
+
+			List<List<int>> columnIndexes = null; 
 
 			//Trying to increase internal capacity of object container
 			MethodInfo setCapacity = listType.GetMethod("set_Capacity", new Type[] { typeof(int) });
@@ -484,15 +484,15 @@ namespace SimpleORM
 					_DMCodeGenerator.GenerateSetterMethod(
 						extractInfo,
 						dataRow.Table,
-						typeof(DataTable)
+						DataTablePSG.TypeOfDataSource
 					);
 
-					if (!extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out extractMethod))
+					if (!extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod))
 						throw new InvalidOperationException("Failed to create setter method.");
-
-					columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
-					//columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
 				}
+
+				if (columnIndexes == null)
+					columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
 
 				object obj;
 				if (!_CreatedObjects.TryGetValue(dataRow, out obj))

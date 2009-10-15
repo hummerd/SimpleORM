@@ -1,24 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
-using SimpleORM.Attributes;
-using System.Reflection.Emit;
 using System.Data;
+using System.Reflection;
+using System.Reflection.Emit;
 
 
 namespace SimpleORM.PropertySetterGenerator
 {
 	public class DataReaderPSG : PSGBase, IPropertySetterGenerator
 	{
+		public static readonly Type TypeOfDataSource = typeof(IDataReader);
+
 		protected static Dictionary<Type, MethodInfo> _ReaderGetMethods = new Dictionary<Type,MethodInfo>();
 		protected static MethodInfo _GetValue = typeof(IDataRecord).GetMethod("GetValue");
 		protected static MethodInfo _IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
 		
-		
-		//protected static MethodInfo _SetNested = typeof(DataMapper).GetMethod("FillObjectListNested");
-
-
 		static DataReaderPSG()
 		{
 			Type typeReader = typeof(IDataRecord);
@@ -33,31 +29,11 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		//public void GenerateSetterMethod(
-		//   ILGenerator ilOut, 
-		//   Type targetClassType, 
-		//   int schemeId, 
-		//   DataTable schemaTable, 
-		//   GetPropertyMapping getPropertyMapping,
-		//   ExtractorInfoCache extractors
-		//   )
-		//{
-		//   GenerateSetterMethod(
-		//      ilOut, 
-		//      targetClassType, 
-		//      schemeId, 
-		//      schemaTable,
-		//      getPropertyMapping,
-		//      extractors,
-		//      //extractInfo,
-		//      false);
-		//}
-
-		public override Type DataSourceType
+		public Type DataSourceType
 		{
 			get
 			{
-				return typeof(IDataRecord);
+				return TypeOfDataSource;
 			}
 		}
 

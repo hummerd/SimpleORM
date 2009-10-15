@@ -1,51 +1,30 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Reflection.Emit;
-using System.Reflection;
 using System.Data;
-using SimpleORM.Attributes;
-using SimpleORM.Exception;
+using System.Reflection;
+using System.Reflection.Emit;
 
 
 namespace SimpleORM.PropertySetterGenerator
 {
-	public class DataRowPSG : PSGBase, IPropertySetterGenerator
+	public class DataTablePSG : PSGBase, IPropertySetterGenerator
 	{
+		public static readonly Type TypeOfDataSource = typeof(DataRow);
+
 		protected static MethodInfo	_GetRowItem		= typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
 		protected static MethodInfo	_GetChildRows	= typeof(DataRow).GetMethod("GetChildRows", new Type[] { typeof(string) });
 		
-		protected static FieldInfo		_DBNullValue	= typeof(DBNull).GetField("Value");
+		protected static FieldInfo	_DBNullValue	= typeof(DBNull).GetField("Value");
 		protected static MethodInfo	_SetNested		= typeof(DataMapper).GetMethod("FillObjectListNested");
 		
 
-		//public void GenerateSetterMethod(
-		//   ILGenerator ilOut, 
-		//   Type targetClassType, 
-		//   int schemeId, 
-		//   DataTable schemaTable, 
-		//   GetPropertyMapping getPropertyMapping,
-		//   ExtractorInfoCache extractors
-		//   )
-		//{
-		//   GenerateSetterMethod(
-		//      ilOut,
-		//      targetClassType,
-		//      schemeId,
-		//      schemaTable,
-		//      getPropertyMapping,
-		//      extractors,
-		//      true);
-		//}
-
-		public override Type DataSourceType
+		public Type DataSourceType
 		{
 			get
 			{
-				return typeof(DataRow);
+				return TypeOfDataSource;
 			}
 		}
+
 
 		public void CreateExtractScalar(
 			ILGenerator ilOut,
@@ -227,68 +206,6 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-
-		//protected override void CreateExtractScalar(
-		//   ILGenerator ilOut, 
-		//   Type targetClassType, 
-		//   PropertyInfo prop,
-		//   FieldInfo field,
-		//   string dbColumnName,
-		//   DataTable schemaTable, 
-		//   int propIndex)
-		//{
-		//   int column = schemaTable.Columns.IndexOf(dbColumnName);
-		//   if (column < 0)
-		//      return;
-
-		//   MethodInfo targetProp = prop.GetSetMethod();
-
-		//   Label lblElse = ilOut.DefineLabel();
-		//   Label lblEnd = ilOut.DefineLabel();
-
-		//   GeneratePropSetterHeader(ilOut, propIndex);
-
-		//   ilOut.Emit(OpCodes.Bne_Un, lblElse);
-
-		//   SetterType setterType = GetSetterType(prop, schemaTable.Columns[column].DataType);
-		//   CreateSetNullValue(setterType, ilOut, prop.PropertyType, targetProp);
-
-		//   ilOut.Emit(OpCodes.Br, lblEnd);
-		//   ilOut.MarkLabel(lblElse);
-
-		//   CreateSetNotNullValue(ilOut, setterType, prop.PropertyType, targetProp);
-
-		//   ilOut.MarkLabel(lblEnd);
-		//}
-
-		//protected override void CreateExtractNested(
-		//   ILGenerator ilOut, 
-		//   Type targetClassType, 
-		//   PropertyInfo prop
-		//   )
-		//{
-		//   Type propType = prop.PropertyType;
-
-		//   if (!typeof(IList).IsAssignableFrom(propType))
-		//      throw new DataMapperException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
-
-		//   Type itemType = mapping.ItemType;
-		//   if (itemType == null)
-		//      itemType = GetItemType(propType);
-
-		//   if (itemType == null)
-		//      throw new DataMapperException("Cannot resolve type of items in collection(" + prop.Name + "). " +
-		//         "Try to set it via ItemType property of DataRelationMapAttribute.");
-
-		//   GenerateSetNestedProperty(
-		//      ilOut,
-		//      mapping.MappingName,
-		//      propType,
-		//      itemType, 
-		//      prop,
-		//      mapping.NestedSchemeId);
-		//}
-
 		protected void GeneratePropSetterHeader(ILGenerator ilOut, int propIndex)
 		{
 			/*
@@ -334,7 +251,6 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldsfld, _DBNullValue);
 		}
 
-
 		protected void CreateSetNotNullValue(ILGenerator ilOut, SetterType setterType, Type propType, MethodInfo setProp)
 		{
 			switch (setterType)
@@ -372,28 +288,7 @@ namespace SimpleORM.PropertySetterGenerator
 					break;
 			}
 		}
-
-		/// <summary>
-		/// Helper method. Returns first generic argument type for first generic subtype.
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		//protected Type GetItemType(Type type)
-		//{
-		//   while (type != null)
-		//   {
-		//      if (type.IsGenericType)
-		//         break;
-
-		//      type = type.BaseType;
-		//   }
-
-		//   if (type == null)
-		//      return null;
-
-		//   return type.GetGenericArguments()[0];
-		//}
-				
+			
 		protected void GenerateConvertedToSubType(ILGenerator ilOut, Type propType, MethodInfo setProp, Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
