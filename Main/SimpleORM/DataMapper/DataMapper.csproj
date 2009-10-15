@@ -70,12 +70,14 @@
     <Compile Include="IObjectBuilder.cs" />
     <Compile Include="KeyInfo.cs" />
     <Compile Include="PropertySetterGenerator\DataMapperCodeGenerator.cs" />
+    <Compile Include="PropertySetterGenerator\ExtractorInfoCache.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PropertySetterGenerator\DataRowPSG.cs" />
     <Compile Include="PropertySetterGenerator\DataReaderPSG.cs" />
     <Compile Include="PropertySetterGenerator\KeyClassGenerator.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />
+    <Compile Include="PropertySetterGenerator\ReflectHelper.cs" />
     <Compile Include="StandartObjectBuilder.cs" />
   </ItemGroup>
   <ItemGroup>

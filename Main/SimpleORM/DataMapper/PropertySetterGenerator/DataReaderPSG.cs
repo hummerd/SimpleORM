@@ -33,25 +33,27 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		public void GenerateSetterMethod(
-			ILGenerator ilOut, 
-			Type targetClassType, 
-			int schemeId, 
-			DataTable schemaTable, 
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo)
-		{
-			GenerateSetterMethod(
-				ilOut, 
-				targetClassType, 
-				schemeId, 
-				schemaTable, 
-				getPropertyMapping,
-				extractInfo,
-				false);
-		}
+		//public void GenerateSetterMethod(
+		//   ILGenerator ilOut, 
+		//   Type targetClassType, 
+		//   int schemeId, 
+		//   DataTable schemaTable, 
+		//   GetPropertyMapping getPropertyMapping,
+		//   ExtractorInfoCache extractors
+		//   )
+		//{
+		//   GenerateSetterMethod(
+		//      ilOut, 
+		//      targetClassType, 
+		//      schemeId, 
+		//      schemaTable,
+		//      getPropertyMapping,
+		//      extractors,
+		//      //extractInfo,
+		//      false);
+		//}
 
-		public Type DataSourceType
+		public override Type DataSourceType
 		{
 			get
 			{
@@ -60,16 +62,15 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected override void CreateExtractScalar(
-			ILGenerator ilOut, 
-			Type targetClassType, 
-			PropertyInfo prop, 
+		public void CreateExtractScalar(
+			ILGenerator ilOut,
+			PropertyInfo prop,
 			FieldInfo field,
-			DataColumnMapAttribute mapping, 
-			DataTable schemaTable, 
-			int propIndex)
+			string dbColumnName,
+			DataTable schemaTable,
+			int memberIx)
 		{
-			int column = schemaTable.Columns.IndexOf(mapping.MappingName);
+			int column = schemaTable.Columns.IndexOf(dbColumnName);
 			if (column < 0)
 				return;
 
@@ -79,7 +80,7 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblSetNull = ilOut.DefineLabel();
 			Label lblEnd = ilOut.DefineLabel();
 
-			GeneratePropSetterHeader(ilOut, propIndex);
+			GeneratePropSetterHeader(ilOut, memberIx);
 
 			//ilOut.Emit(OpCodes.Brfalse, lblElse);
 			ilOut.Emit(OpCodes.Ldc_I4_0);
@@ -105,8 +106,8 @@ namespace SimpleORM.PropertySetterGenerator
 			if (setterType == SetterType.Nullable && 
 				prop.PropertyType.GetGenericArguments()[0] == dbType)
 				GenerateSetDirect(
-					ilOut, 
-					propIndex, 
+					ilOut,
+					memberIx, 
 					targetProp,
 					field,
 					prop.PropertyType, 
@@ -114,27 +115,32 @@ namespace SimpleORM.PropertySetterGenerator
 					dbType);
 			else if (setterType == SetterType.NullableNI)
 				CreateSetNotNullValueFromSubType(
-					ilOut, 
-					propIndex, 
+					ilOut,
+					memberIx, 
 					targetProp, 
 					prop.PropertyType, 
 					prop.PropertyType.GetGenericArguments()[0]);
 			else if (useDirectSet)
 				GenerateSetDirect(
-					ilOut, 
-					propIndex, 
+					ilOut,
+					memberIx, 
 					targetProp,
 					field,
 					prop.PropertyType, 
 					_ReaderGetMethods[dbType], 
 					null);
 			else
-				CreateSetNotNullValue(ilOut, propIndex, targetProp, prop.PropertyType);
+				CreateSetNotNullValue(ilOut, memberIx, targetProp, prop.PropertyType);
 			
 			ilOut.MarkLabel(lblEnd);
 		}
 
-		protected override void CreateExtractNested(ILGenerator ilOut, Type targetClassType, PropertyInfo prop, DataRelationMapAttribute mapping)
+		public void CreateExtractNested(
+			ILGenerator ilOut,
+			PropertyInfo prop,
+			Type relationType,
+			string relationName,
+			int relationSchemeId)
 		{
 			; 
 		}

@@ -6,16 +6,20 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Xml;
 using SimpleORM.Attributes;
+using System.Collections;
+using SimpleORM.Exception;
 
 
 namespace SimpleORM.PropertySetterGenerator
 {
 	public class DataMapperCodeGenerator
 	{
-		protected readonly
-			Dictionary<Type,		//target object type (Entity type)
-				Dictionary<Type,	//extractor type DataTable or IDataReader
-					Dictionary<int, ExtractInfo>>> _ExtractorCache = new Dictionary<Type, Dictionary<Type, Dictionary<int, ExtractInfo>>>();
+		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
+					
+		//protected readonly
+		//   Dictionary<Type,		//target object type (Entity type)
+		//      Dictionary<Type,	//extractor type DataTable or IDataReader
+		//         Dictionary<int, ExtractInfo>>> _ExtractorCache = new Dictionary<Type, Dictionary<Type, Dictionary<int, ExtractInfo>>>();
 
 		protected ModuleBuilder		_ModuleBuilder;
 		protected AssemblyBuilder	_AsmBuilder;
@@ -63,7 +67,7 @@ namespace SimpleORM.PropertySetterGenerator
 		/// </summary>
 		public void ClearCache()
 		{
-			_ExtractorCache.Clear();
+			_ExtractInfoCache.Clear();
 			_ModuleBuilder = null;
 		}
 
@@ -147,7 +151,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilGen.Emit(OpCodes.Ldarg_2);			// mapper
 			ilGen.Emit(OpCodes.Ldarg_3);			// columnsList
 			ilGen.Emit(OpCodes.Ldarg, 4);			// columnsIx
-			ilGen.Emit(OpCodes.Call, info.FillMethod);
+			ilGen.Emit(OpCodes.Call, info.FillMethod[typeof(IDataReader)]);
 
 			//if (topLevel)
 			//{
@@ -234,105 +238,113 @@ namespace SimpleORM.PropertySetterGenerator
 			ilGen.Emit(OpCodes.Ret);
 		}
 
-		/// <summary>
-		/// Returns setter method for specified type.
-		/// </summary>
-		/// <remarks>If this is first call for specified type then setter method is generated and placed into cache.
-		/// If setter method exists in cache then it just retriveid from there.</remarks>
-		/// <param name="objectType"></param>
-		/// <param name="dtSource"></param>
-		/// <param name="schemeId"></param>
-		/// <returns></returns>
-		public ExtractInfo GetSetterMethod(Type objectType, Type extractorType, DataTable dtSource, int schemeId)
+
+		public ExtractInfo CreateExtractInfoWithMethod(Type targetClassType, int schemeId, DataTable dtSource, Type generatorSourceType)
 		{
-			IPropertySetterGenerator methodGenerator = _SetterGenerators[extractorType];
-
-			ExtractInfo result;
-			Dictionary<Type, Dictionary<int, ExtractInfo>> extractorSchemas;
-			Dictionary<int, ExtractInfo> schemeMethods;
-
-			bool extractorTypeExists = _ExtractorCache.TryGetValue(objectType, out extractorSchemas);
-
-			if (!extractorTypeExists) // If extractor method does not exist for this type
-			{
-				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
-				//Add method to cache
-				schemeMethods = new Dictionary<int, ExtractInfo>(2) { { schemeId, result } };
-				_ExtractorCache.Add(
-					objectType,
-					new Dictionary<Type, Dictionary<int, ExtractInfo>>() { { extractorType, schemeMethods } }
-					);
-			}
-			// if extracot of specified type does not exists		
-			else if (!extractorSchemas.TryGetValue(extractorType, out schemeMethods))
-			{
-				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
-				extractorSchemas.Add(
-					extractorType,
-					new Dictionary<int, ExtractInfo>(2) { { schemeId, result } }
-					);
-			}
-			// If extractor method does not exist for this scheme
-			else if (!schemeMethods.TryGetValue(schemeId, out result))
-			{
-				result = GenerateSetterMethod(objectType, schemeId, dtSource, methodGenerator);
-				schemeMethods.Add(schemeId, result);
-			}
+			ExtractInfo result = CreateExtractInfo(targetClassType, schemeId);
+			if (!result.FillMethod.ContainsKey(generatorSourceType))
+				GenerateSetterMethod(result, dtSource, generatorSourceType);
 
 			return result;
 		}
 
+		public ExtractInfo CreateExtractInfo(Type targetClassType, int schemeId)
+		{
+			//Check cache
+			ExtractInfo result;
+			if (_ExtractInfoCache.TryGetExtractInfo(targetClassType, schemeId, out result))
+				return result;
 
-		//protected ExtractInfo GenerateComplexSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
-		//{
-		//   Stack<ComplexDataMapAttribute> relatedObjects = FindSubObjects(targetClassType, schemeId, null);
-		//   while (relatedObjects.Count > 0)
-		//   {
-		//      ComplexDataMapAttribute dma = relatedObjects.Pop();
-		//      GenerateSetterMethod(dma.ItemType, dma.NestedSchemeId, dtSource, methodGenerator);
-		//   }
+			//Cache miss, create new one
+			result = new ExtractInfo(targetClassType, schemeId);
+			_ExtractInfoCache.Add(targetClassType, schemeId, result);
 
-		//   return GenerateSetterMethod(targetClassType, schemeId, dtSource, methodGenerator);
-		//}
+			List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
 
-		//protected Stack<ComplexDataMapAttribute> FindSubObjects(Type targetClassType, int schemeId, Stack<ComplexDataMapAttribute> result)
-		//{
-		//   if (result == null)
-		//      result = new Stack<ComplexDataMapAttribute>();
+			foreach (PropertyInfo prop in props)
+			{
+				DataMapAttribute mapping = GetMappingMethod(targetClassType, schemeId)
+					(prop, schemeId);
 
-		//   List<ComplexDataMapAttribute> localComplex = new List<ComplexDataMapAttribute>();
+				if (mapping == null)
+					continue;
 
-		//   bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
-		//   PropertyInfo[] props = targetClassType.GetProperties();
+				if (mapping.GetType() == typeof(DataColumnMapAttribute))
+				{
+					DataColumnMapAttribute clmnmap = (DataColumnMapAttribute)mapping;
 
-		//   foreach (PropertyInfo prop in props)
-		//   {
-		//      ComplexDataMapAttribute mapping = useXmlMapping ?
-		//         GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute : 
-		//         GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+					result.MemberColumns.Add(
+						new MemberExtractInfo(clmnmap.MappingName, prop)
+						);
+				}
+				else if (mapping.GetType() == typeof(DataRelationMapAttribute))
+				{
+					DataRelationMapAttribute rmap = (DataRelationMapAttribute)mapping;
 
-		//      if (mapping == null)
-		//         continue;
+					if (!typeof(IList).IsAssignableFrom(prop.PropertyType))
+						throw new DataMapperException("Cannot set nested objects for collection that does not implement IList (" + prop.Name + ").");
 
-		//      if (mapping.ItemType == null)
-		//         mapping.ItemType = prop.PropertyType;
+					if (rmap.ItemType == null)
+						rmap.ItemType =  GetListItemType(prop.PropertyType);
 
-		//      //if (!localComplex.Contains(mapping))
-		//      //   localComplex.Add(mapping);
-		//   }
+					if (rmap.ItemType == null)
+						throw new DataMapperException("Cannot resolve type of items in collection(" + prop.Name + "). " +
+							"Try to set it via ItemType property of DataRelationMapAttribute.");
 
-		//   foreach (var item in localComplex)
-		//      if (result.Contains(item))
-		//         throw new DataMapperException("Can not extract complex objects with cyclic references");
+					result.ChildTypes.Add(
+						new RelationExtractInfo(
+							rmap.MappingName,
+							prop,
+							CreateExtractInfo(rmap.ItemType, rmap.NestedSchemeId)
+							)
+						);
+				}
+				else if (mapping.GetType() == typeof(ComplexDataMapAttribute))
+				{
+					ComplexDataMapAttribute cmap = (ComplexDataMapAttribute)mapping;
 
-		//   foreach (var item in localComplex)
-		//      result.Push(item);
+					if (cmap.ItemType == null)
+						cmap.ItemType = prop.PropertyType;
 
-		//   foreach (var item in localComplex)
-		//      FindSubObjects(item.ItemType, item.NestedSchemeId, result);
+					result.SubTypes.Add(
+						new RelationExtractInfo(
+							cmap.MappingName,
+							prop,
+							CreateExtractInfo(cmap.ItemType, cmap.NestedSchemeId)
+							)
+						);
+				}
+			}
+			
+			FieldInfo[] fields = targetClassType.GetFields();
+			//result.Fields = fields;
 
-		//   return result;
-		//}
+			foreach (FieldInfo field in fields)
+			{
+				DataColumnMapAttribute mapping = GetMappingMethod(targetClassType, schemeId)
+					(field, schemeId) as DataColumnMapAttribute;
+
+				if (mapping == null)
+					continue;
+
+				result.MemberColumns.Add(
+					new MemberExtractInfo(
+						mapping.MappingName,
+						field
+						)
+					);
+			}
+
+			//Extract info about primary Key
+			result.PrimaryKeyInfo = GetPrimaryKey(targetClassType, schemeId);
+
+			//Extract info about foreign keys
+			result.ForeignKeysInfo.AddRange(
+				GetForeignKeys(targetClassType, schemeId)
+				);
+
+			return result;
+		}
 
 		/// <summary>
 		/// Generates setter method using xml config or type meta info.
@@ -341,51 +353,147 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="schemeId"></param>
 		/// <param name="dtSource"></param>
 		/// <returns></returns>
-		protected ExtractInfo GenerateSetterMethod(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		public ExtractInfo GenerateSetterMethod(ExtractInfo extractInfo, DataTable dtSource, Type generatorSourceType)
 		{
-			ExtractInfo result = new ExtractInfo();
+			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
 
-			result.SubTypes = GetSubTypes(targetClassType, schemeId, dtSource, methodGenerator);
-
-			//Generating Type and method declaration
-			TypeBuilder typeBuilder = CreateAssemblyType(targetClassType);
-			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(
-				targetClassType, typeBuilder, methodGenerator.DataSourceType);
-			ILGenerator ilGen = methodBuilder.GetILGenerator();
-
-			if (_XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId))
+			// First process complex types
+			foreach (RelationExtractInfo item in extractInfo.SubTypes)
 			{
-				methodGenerator.GenerateSetterMethod(
-					ilGen, targetClassType, schemeId, dtSource, GetMappingFromXml, result);
-			}
-			else //If there is no xml config or type mapping not defined in xml
-			{
-				methodGenerator.GenerateSetterMethod(
-					ilGen, targetClassType, schemeId, dtSource, GetMappingFromAtt, result);
-			}
-
-			Type type = typeBuilder.CreateType();
-			result.FillMethod = type.GetMethod("SetProps_" + targetClassType);
-
-			//Extract info about primary Key
-			KeyInfo pk = GetPrimaryKey(targetClassType, schemeId);
-			if (pk != null)
-			{
-				result.PrimaryKeyInfo = GenerateKey(pk, schemeId, dtSource, methodGenerator);
-			}
-
-			//Extract info about foreign keys
-			List<KeyInfo> foreignKeys = GetForeignKeys(targetClassType, schemeId);
-			foreach (var item in foreignKeys)
-			{
-				result.ForeignKeysInfo.Add(
-					GenerateKey(pk, schemeId, dtSource, methodGenerator)
+				GenerateSetterMethod(
+					item.ExtractInfo,
+					dtSource,
+					generatorSourceType
 					);
 			}
 
-			return result;
+			//Generating Type and method declaration
+			TypeBuilder typeBuilder = CreateAssemblyType(extractInfo.TargetType);
+			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(
+				extractInfo.TargetType, typeBuilder, methodGenerator.DataSourceType);
+			ILGenerator ilGen = methodBuilder.GetILGenerator();
+
+			methodGenerator.GenerateMethodHeader(ilGen);
+
+			int propIx = 0;
+			foreach (MemberExtractInfo mei in extractInfo.MemberColumns)
+			{
+				methodGenerator.CreateExtractScalar(
+					ilGen,
+					mei.Member as PropertyInfo,
+					mei.Member as FieldInfo,
+					mei.MapName,
+					dtSource,
+					propIx++
+					);
+			}
+
+			foreach (RelationExtractInfo rei in extractInfo.ChildTypes)
+			{
+				methodGenerator.CreateExtractNested(
+					ilGen,
+					rei.Member as PropertyInfo,
+					rei.ExtractInfo.TargetType,
+					rei.MapName,
+					rei.ExtractInfo.SchemeId
+					);
+			}
+
+			foreach (RelationExtractInfo rei in extractInfo.SubTypes)
+			{
+				methodGenerator.GenerateExtractComplex(
+					ilGen,
+					rei.Member as PropertyInfo,
+					rei.ExtractInfo.TargetType,
+					rei.ExtractInfo.FillMethod[methodGenerator.DataSourceType]
+					);
+			}
+
+			Type type = typeBuilder.CreateType();
+			extractInfo.FillMethod[methodGenerator.DataSourceType] = type.GetMethod("SetProps_" + extractInfo.TargetType);
+
+			//Extract info about primary Key
+			if (extractInfo.PrimaryKeyInfo != null)
+			{
+				extractInfo.PrimaryKeyInfo = GenerateKey(
+					extractInfo.PrimaryKeyInfo,
+					extractInfo.SchemeId,
+					dtSource,
+					generatorSourceType);
+			}
+
+			//Extract info about foreign keys
+			List<KeyInfo> foreignKeysInfo = new List<KeyInfo>();
+			foreach (KeyInfo fk in extractInfo.ForeignKeysInfo)
+			{
+				foreignKeysInfo.Add(
+					GenerateKey(fk, extractInfo.SchemeId, dtSource, generatorSourceType)
+					);
+			}
+
+			extractInfo.ForeignKeysInfo = foreignKeysInfo;
+
+			return extractInfo;
 		}
 
+
+
+
+		protected GetPropertyMapping GetMappingMethod(Type targetClassType, int schemeId)
+		{
+			if (_XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId))
+			{
+				return GetMappingFromXml;
+			}
+			else //If there is no xml config or type mapping not defined in xml
+			{
+				return GetMappingFromAtt;
+			}
+		}
+
+		/// <summary>
+		/// Checks if xml mapping for specified type exists
+		/// </summary>
+		/// <param name="prop"></param>
+		/// <param name="schemeId"></param>
+		/// <returns></returns>
+		protected bool IsXmlMappingExists(Type targetClassType, int schemeId)
+		{
+			if (_XmlDocument == null)
+				return false;
+
+			//Generate XPath Query
+			string qry = "/MappingDefinition/TypeMapping{0}";
+			string typeName = targetClassType.Assembly.GetName().Name;
+			typeName = typeName + ", " + targetClassType.FullName;
+			string typeClause = "[@typeName=\"" + typeName + "\" and @schemeId=\"" + schemeId + "\"]";
+			qry = String.Format(qry, typeClause);
+
+			//Looking for node
+			return _XmlDocument.SelectSingleNode(qry) != null;
+		}
+
+		/// <summary>
+		/// Helper method. Returns first generic argument type for first generic subtype.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		protected Type GetListItemType(Type type)
+		{
+			while (type != null)
+			{
+				if (type.IsGenericType)
+					break;
+
+				type = type.BaseType;
+			}
+
+			if (type == null)
+				return null;
+
+			return type.GetGenericArguments()[0];
+		}
+		
 		protected KeyInfo GetPrimaryKey(Type targetClassType, int schemeId)
 		{
 			return null;
@@ -396,8 +504,10 @@ namespace SimpleORM.PropertySetterGenerator
 			return new List<KeyInfo>();
 		}
 
-		protected KeyInfo GenerateKey(KeyInfo pk, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		protected KeyInfo GenerateKey(KeyInfo pk, int schemeId, DataTable dtSource, Type generatorSourceType)
 		{
+			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
+
 			pk.KeyType = _KeyGenerator.GenerateKeyType(
 				pk.Name,
 				dtSource,
@@ -406,12 +516,12 @@ namespace SimpleORM.PropertySetterGenerator
 				schemeId
 				);
 
-			pk.FillMethod = GenerateSetterMethod(
+			pk.FillMethod = CreateExtractInfoWithMethod(
 				pk.KeyType,
 				schemeId,
 				dtSource,
-				methodGenerator
-				).FillMethod;
+				generatorSourceType
+				).FillMethod[generatorSourceType];
 
 			return pk;
 		}
@@ -425,35 +535,72 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <param name="dtSource"></param>
 		/// <param name="methodGenerator"></param>
 		/// <returns></returns>
-		protected List<ExtractInfo> GetSubTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
-		{
-			List<ExtractInfo> result = new List<ExtractInfo>();
+		//protected List<ExtractInfo> GetSubTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		//{
+		//   List<ExtractInfo> result = new List<ExtractInfo>();
 
-			bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
-			PropertyInfo[] props = targetClassType.GetProperties();
+		//   //bool useXmlMapping = IsXmlMappingExists(targetClassType, schemeId);
+		//   List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
 
-			foreach (PropertyInfo prop in props)
-			{
-				ComplexDataMapAttribute mapping = useXmlMapping ?
-					GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute :
-					GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+		//   foreach (PropertyInfo prop in props)
+		//   {
+		//      ComplexDataMapAttribute mapping = GetMappingMethod(targetClassType, schemeId)
+		//         (prop, schemeId) as ComplexDataMapAttribute;
 
-				if (mapping == null)
-					continue;
+		//      if (mapping == null)
+		//         continue;
 
-				if (mapping.ItemType == null)
-					mapping.ItemType = prop.PropertyType;
+		//      if (mapping.ItemType == null)
+		//         mapping.ItemType = prop.PropertyType;
 
-				result.Add(
-					GenerateSetterMethod(
-						mapping.ItemType,
-						mapping.NestedSchemeId,
-						dtSource,
-						methodGenerator));
-			}
+		//      result.Add(
+		//         GenerateSetterMethod(
+		//            mapping.ItemType,
+		//            mapping.NestedSchemeId,
+		//            dtSource,
+		//            methodGenerator));
+		//   }
 
-			return result;
-		}
+		//   return result;
+		//}
+
+		///// <summary>
+		///// Get list of child objects assosiated with targetClassType.
+		///// </summary>
+		///// <param name="targetClassType"></param>
+		///// <param name="schemeId"></param>
+		///// <param name="dtSource"></param>
+		///// <param name="methodGenerator"></param>
+		///// <returns></returns>
+		//protected List<ExtractInfo> GetNestedTypes(Type targetClassType, int schemeId, DataTable dtSource, IPropertySetterGenerator methodGenerator)
+		//{
+		//   List<ExtractInfo> result = new List<ExtractInfo>();
+
+		//   bool useXmlMapping = _XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId);
+		//   List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
+
+		//   foreach (PropertyInfo prop in props)
+		//   {
+		//      ComplexDataMapAttribute mapping = useXmlMapping ?
+		//         GetMappingFromXml(prop, schemeId) as ComplexDataMapAttribute :
+		//         GetMappingFromAtt(prop, schemeId) as ComplexDataMapAttribute;
+
+		//      if (mapping == null)
+		//         continue;
+
+		//      if (mapping.ItemType == null)
+		//         mapping.ItemType = prop.PropertyType;
+
+		//      result.Add(
+		//         GenerateSetterMethod(
+		//            mapping.ItemType,
+		//            mapping.NestedSchemeId,
+		//            dtSource,
+		//            methodGenerator));
+		//   }
+
+		//   return result;
+		//}
 
 		/// <summary>
 		/// Creates dynamic assembly for holding generated type with setter methods.
@@ -618,25 +765,6 @@ namespace SimpleORM.PropertySetterGenerator
 			XmlAttribute attNestedSchemaId = xmlMapping.Attributes["nestedSchemaId"];
 			if (attNestedSchemaId != null && !String.IsNullOrEmpty(attNestedSchemaId.Value))
 				nestedSchemeId = int.Parse(attNestedSchemaId.Value);
-		}
-
-		/// <summary>
-		/// Checks if xml mapping for specified type exists
-		/// </summary>
-		/// <param name="prop"></param>
-		/// <param name="schemeId"></param>
-		/// <returns></returns>
-		protected bool IsXmlMappingExists(Type type, int schemeId)
-		{
-			//Generate XPath Query
-			string qry = "/MappingDefinition/TypeMapping{0}";
-			string typeName = type.Assembly.GetName().Name;
-			typeName = typeName + ", " + type.FullName;
-			string typeClause = "[@typeName=\"" + typeName + "\" and @schemeId=\"" + schemeId + "\"]";
-			qry = String.Format(qry, typeClause);
-
-			//Looking for node
-			return _XmlDocument.SelectSingleNode(qry) != null;
 		}
 	}
 }

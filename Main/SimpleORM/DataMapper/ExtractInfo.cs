@@ -2,42 +2,113 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
+using SimpleORM.Attributes;
 
 
 namespace SimpleORM
 {
 	public class ExtractInfo
 	{
-		protected MethodInfo				_FillMethod;
-		protected List<string>			_PropColumns;
-		protected List<ExtractInfo>	_SubTypes;
+		protected Type									_TargetType;
+		protected int									_SchemeId;
+		protected Dictionary<Type, MethodInfo> _FillMethod;
+		protected List<MemberExtractInfo>		_PropColumns;
+		protected List<RelationExtractInfo>		_SubTypes;
+		protected List<RelationExtractInfo>		_ChildTypes;
 		protected KeyInfo					_PrimaryKeyInfo;
 		protected List<KeyInfo>			_ForeignKeysInfo;
+		protected int						_TableID = -1;
+		protected string					_TableName;
+		protected IList<PropertyInfo> _Props;
+		protected IList<FieldInfo>		_Fields;
 
 
-		public ExtractInfo()
+		public ExtractInfo(Type targetType, int schemeId)
 		{
-			_PropColumns = new List<string>();
+			_TargetType = targetType;
+			_SchemeId = schemeId;
+			_FillMethod = new Dictionary<Type, MethodInfo>();
+			_PropColumns = new List<MemberExtractInfo>();
 			_ForeignKeysInfo = new List<KeyInfo>();
+			_SubTypes = new List<RelationExtractInfo>();
+			_ChildTypes = new List<RelationExtractInfo>();
 		}
 
 		
-		public MethodInfo FillMethod
+		public Type TargetType
 		{
-			get { return _FillMethod; }
-			set { _FillMethod = value; }
+			get
+			{
+				return _TargetType;
+			}
+			set
+			{
+				_TargetType = value;
+			}
+		}
+		
+		public int SchemeId
+		{
+			get
+			{
+				return _SchemeId;
+			}
+			set
+			{
+				_SchemeId = value;
+			}
 		}
 
-		public List<string> PropColumns
+		public Dictionary<Type, MethodInfo> FillMethod
+		{
+			get { return _FillMethod; }
+		}
+		
+		/// <summary>
+		/// List of DB columns that will be mapped to object
+		/// (in the same order as it goes in entity type)
+		/// First must be enumerated props then fields
+		/// </summary>
+		public List<MemberExtractInfo> MemberColumns
 		{
 			get { return _PropColumns; }
 			set { _PropColumns = value; }
 		}
 
-		public List<ExtractInfo> SubTypes
+		//public IList<PropertyInfo> Props
+		//{
+		//   get
+		//   {
+		//      return _Props;
+		//   }
+		//   set
+		//   {
+		//      _Props = value;
+		//   }
+		//}
+
+		//public IList<FieldInfo> Fields
+		//{
+		//   get
+		//   {
+		//      return _Fields;
+		//   }
+		//   set
+		//   {
+		//      _Fields = value;
+		//   }
+		//}
+
+		public List<RelationExtractInfo> SubTypes
 		{
 			get { return _SubTypes; }
 			set { _SubTypes = value; }
+		}
+
+		public List<RelationExtractInfo> ChildTypes
+		{
+			get { return _ChildTypes; }
+			set { _ChildTypes = value; }
 		}
 
 		public KeyInfo PrimaryKeyInfo
@@ -50,6 +121,93 @@ namespace SimpleORM
 		{
 			get { return _ForeignKeysInfo; }
 			set { _ForeignKeysInfo = value; }
+		}
+		
+		public int TableID
+		{
+			get
+			{
+				return _TableID;
+			}
+			set
+			{
+				_TableID = value;
+			}
+		}
+
+		public string TableName
+		{
+			get
+			{
+				return _TableName;
+			}
+			set
+			{
+				_TableName = value;
+			}
+		}
+	}
+
+	public class RelationExtractInfo : MemberExtractInfo
+	{
+		protected ExtractInfo	_ExtractInfo;
+
+
+		public RelationExtractInfo(string mapName, MemberInfo member, ExtractInfo extractInfo)
+			: base(mapName, member)
+		{
+			_ExtractInfo = extractInfo;
+		}
+
+
+		public ExtractInfo ExtractInfo
+		{
+			get
+			{
+				return _ExtractInfo;
+			}
+			set
+			{
+				_ExtractInfo = value;
+			}
+		}		
+	}
+
+	public class MemberExtractInfo
+	{
+		protected string			_MapName;
+		protected MemberInfo		_Member;
+
+
+		public MemberExtractInfo(string mapName, MemberInfo member)
+		{
+			_MapName = mapName;
+			_Member = member;
+		}
+
+
+		public string MapName
+		{
+			get
+			{
+				return _MapName;
+			}
+			set
+			{
+				_MapName = value;
+			}
+		}
+
+		public MemberInfo Member
+		{ 
+			get
+			{
+				return _Member;
+			}
+			set
+			{
+				_Member = value;
+			}
 		}
 	}
 }

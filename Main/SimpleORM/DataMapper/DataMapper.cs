@@ -99,28 +99,38 @@ namespace SimpleORM
 			//Create new cache only if we manage objects cache
 			//if (clearObjectCache)
 			//   _CreatedObjects = new Dictionary<DataRow, object>();
-			ExtractInfo extractInfo = null;
+			
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(
+				objectType,
+				schemeId
+				);
+
+			if (extractInfo == null)
+				throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+			MethodInfo method = null;
+			extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out method);
 
 			while (reader.Read())
 			{
-				if (extractInfo == null)
+				if (method == null)
 				{
 					DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-					extractInfo = _DMCodeGenerator.GetSetterMethod(
-						objectType,
-						typeof(IDataReader),
+					_DMCodeGenerator.GenerateSetterMethod(
+						extractInfo,
 						schemeTable,
-						schemeId);
+						typeof(IDataReader)
+						);
 
-					if (extractInfo == null || extractInfo.FillMethod == null)
-						throw new InvalidOperationException("Can not fill object without mapping definition.");
+					if (!extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out method))
+						throw new InvalidOperationException("Failed to create setter method.");
 
 					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 				}
 
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
-				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+				CallExtractorMethod(method, obj, reader, columnIndexes);
 				objectList.Add(obj);
 			}
 		}
@@ -159,7 +169,13 @@ namespace SimpleORM
 				if (!hasData)
 					continue;
 
-				ExtractFillInfo(reader, objectType, schemeId, out extractInfo, out columnIndexes, out topLevel);
+				//ExtractFillInfo(
+				//   reader, 
+				//   objectType, 
+				//   schemeId, 
+				//   out extractInfo, 
+				//   out columnIndexes, 
+				//   out topLevel);
 
 
 			} while (reader.NextResult());
@@ -180,14 +196,16 @@ namespace SimpleORM
 		{
 			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
 			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
+			KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
+			List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
+			MethodInfo method = extractInfo.FillMethod[typeof(IDataReader)];
 
 			do
 			{
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
-				CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+				CallExtractorMethod(method, obj, reader, columnIndexes);
 
-				KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
 				if (pkInfo != null)
 				{
 					object pk = _ObjectBuilder.CreateObject<DataTable>();
@@ -195,7 +213,6 @@ namespace SimpleORM
 					pkObjects.Add(pk, obj);
 				}
 
-				List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
 				if (fkInfo.Count > 0)
 				{
 					foreach (var item in fkInfo)
@@ -224,38 +241,44 @@ namespace SimpleORM
 			fkIndex.Add(fkObjects);
 		}
 
-		protected bool ExtractFillInfo(
-			IDataReader reader,
-			Type objectType,
-			int schemeId,
-			out ExtractInfo extractInfo,
-			out List<List<int>> columnIndexes,
-			out bool topLevel)
-		{
-			topLevel = false;
+		//protected bool ExtractFillInfo(
+		//   IDataReader reader,
+		//   Type objectType,
+		//   int schemeId,
+		//   int tableIx,
+		//   out ExtractInfo extractInfo,
+		//   out List<List<int>> columnIndexes,
+		//   out bool topLevel)
+		//{
+		//   topLevel = false;
 
-			DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-			string tableName = String.IsNullOrEmpty(schemeTable.TableName) ? schemeTable.Columns[0].ColumnName : schemeTable.TableName;
+		//   DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+		//   string tableName = String.IsNullOrEmpty(schemeTable.TableName) ? schemeTable.Columns[0].ColumnName : schemeTable.TableName;
 
-			extractInfo = _DMCodeGenerator.GetSetterMethod(
-				objectType,
-				typeof(IDataReader),
-				schemeTable,
-				schemeId);
+		//   extractInfo = _DMCodeGenerator.GetSetterMethod(
+		//      objectType,
+		//      typeof(IDataReader),
+		//      schemeTable,
+		//      schemeId);
 
-			if (extractInfo == null || extractInfo.FillMethod == null)
-				throw new InvalidOperationException("Can not fill object without mapping definition.");
+		//   if (extractInfo == null || extractInfo.FillMethod == null)
+		//      throw new InvalidOperationException("Can not fill object without mapping definition.");
 
-			columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+		//   if (extractInfo.TableID >= 0 && extractInfo.TableID == tableIx)
+		//      topLevel = true;
+		//   else if (!String.IsNullOrEmpty(extractInfo.TableName) && extractInfo.TableName == tableName)
+		//      topLevel = true;
 
-			//if no pk and no fk and not top level object
-			if (extractInfo.PrimaryKeyInfo == null &&
-				 extractInfo.ForeignKeysInfo.Count <= 0 &&
-				!topLevel)
-				return false;
+		//   columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
-			return true;
-		}
+		//   //if no pk and no fk and not top level object
+		//   if (extractInfo.PrimaryKeyInfo == null &&
+		//       extractInfo.ForeignKeysInfo.Count <= 0 &&
+		//      !topLevel)
+		//      return false;
+
+		//   return true;
+		//}
 
 
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
@@ -282,11 +305,12 @@ namespace SimpleORM
 				objectType = obj.GetType();
 
 			DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-			ExtractInfo extractInfo = _DMCodeGenerator.GetSetterMethod(
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfoWithMethod(
 				objectType,
-				typeof(IDataReader),
+				schemeId,
 				schemeTable,
-				schemeId);
+				typeof(IDataReader)
+				);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
@@ -298,7 +322,7 @@ namespace SimpleORM
 			List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
 			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod, obj, reader, columnIndexes);
+			CallExtractorMethod(extractInfo.FillMethod[typeof(IDataReader)], obj, reader, columnIndexes);
 			return obj;
 		}
 
@@ -386,11 +410,12 @@ namespace SimpleORM
 			if (objectType == null)
 				objectType = obj.GetType();
 
-			ExtractInfo extractInfo = _DMCodeGenerator.GetSetterMethod(
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfoWithMethod(
 				objectType,
-				typeof(DataTable),
+				schemeId,
 				dataRow.Table,
-				schemeId);
+				typeof(DataTable)
+				);
 
 			if (extractInfo == null || extractInfo.FillMethod == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
@@ -404,7 +429,7 @@ namespace SimpleORM
 				obj = _ObjectBuilder.CreateObject(objectType);
 
 			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod, obj, dataRow, columnIndexes);
+			CallExtractorMethod(extractInfo.FillMethod[typeof(DataTable)], obj, dataRow, columnIndexes);
 			return obj;
 		}
 
@@ -429,8 +454,11 @@ namespace SimpleORM
 			if (objectType == null)
 				throw new ArgumentException("Cannot fill object of unknown type null.", "objectType");
 
-			ExtractInfo extractInfo = null;
-			//List<int> columnIndexes = null;
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
+
+			MethodInfo extractMethod = null;
+			extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out extractMethod);
+			
 			List<List<int>> columnIndexes = null;
 
 			//Trying to increase internal capacity of object container
@@ -451,16 +479,16 @@ namespace SimpleORM
 				else
 					dataRow = rowExtractor(row);
 
-				if (extractInfo == null)
+				if (extractMethod == null)
 				{
-					extractInfo = _DMCodeGenerator.GetSetterMethod(
-						objectType,
-						typeof(DataTable),
+					_DMCodeGenerator.GenerateSetterMethod(
+						extractInfo,
 						dataRow.Table,
-						schemeId);
+						typeof(DataTable)
+					);
 
-					if (extractInfo == null || extractInfo.FillMethod == null)
-						throw new InvalidOperationException("Can not fill object without mapping definition.");
+					if (!extractInfo.FillMethod.TryGetValue(typeof(IDataReader), out extractMethod))
+						throw new InvalidOperationException("Failed to create setter method.");
 
 					columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
 					//columnIndexes = ColumnsIndexes(dataRow.Table, extractInfo.PropColumns);
@@ -471,7 +499,7 @@ namespace SimpleORM
 				{
 					obj = _ObjectBuilder.CreateObject(objectType);
 					//Fill object
-					CallExtractorMethod(extractInfo.FillMethod, obj, dataRow, columnIndexes);
+					CallExtractorMethod(extractMethod, obj, dataRow, columnIndexes);
 					_CreatedObjects.Add(dataRow, obj);
 				}
 
@@ -492,19 +520,19 @@ namespace SimpleORM
 			if (result == null)
 				result = new List<List<int>>();
 
-			result.Add(GetColumnsIndexes(table, extractInfo.PropColumns));
+			result.Add(GetColumnsIndexes(table, extractInfo.MemberColumns));
 
 			foreach (var item in extractInfo.SubTypes)
-				GetSubColumnsIndexes(table, item, result);
+				GetSubColumnsIndexes(table, item.ExtractInfo, result);
 
 			return result;
 		}
 
-		protected List<int> GetColumnsIndexes(DataTable table, List<string> columns)
+		protected List<int> GetColumnsIndexes(DataTable table, List<MemberExtractInfo> columns)
 		{
 			List<int> result = new List<int>(columns.Count);
 			for (int i = 0; i < columns.Count; i++)
-				result.Add(table.Columns.IndexOf(columns[i]));
+				result.Add(table.Columns.IndexOf(columns[i].MapName));
 
 			return result;
 		}

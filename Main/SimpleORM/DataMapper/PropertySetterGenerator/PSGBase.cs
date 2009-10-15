@@ -6,6 +6,7 @@ using System.Reflection;
 using SimpleORM.Attributes;
 using System.Data;
 using System.Diagnostics;
+using SimpleORM.Exception;
 
 
 namespace SimpleORM.PropertySetterGenerator
@@ -33,212 +34,22 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected void GenerateSetterMethod(
-			ILGenerator ilOut,
-			Type targetClassType,
-			int schemeId,
-			DataTable schemaTable,
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo,
-			bool generateExtractNested)
+		public abstract Type DataSourceType
 		{
-			List<PropertyInfo> props = GetProps(targetClassType);
-			GenerateMethodHeader(ilOut);
-
-			Debug.WriteLine("GenerateSetterMethod for " + targetClassType.Name);
-
-			GenerateSimplePropsSetter(
-				props,
-				ilOut,
-				targetClassType,
-				schemeId,
-				schemaTable,
-				getPropertyMapping,
-				extractInfo,
-				generateExtractNested);
-
-			GenerateNestedPropsSetter(
-				props,
-				ilOut,
-				targetClassType,
-				schemeId,
-				schemaTable,
-				getPropertyMapping,
-				extractInfo,
-				generateExtractNested);
-
-			GenerateSimpleFieldSetter(
-				ilOut,
-				targetClassType,
-				schemeId,
-				schemaTable,
-				getPropertyMapping,
-				extractInfo,
-				generateExtractNested);
-			
-			ilOut.Emit(OpCodes.Ret);
+			get;
 		}
 
-		protected List<PropertyInfo> GetProps(Type type)
-		{
-			Dictionary<string, PropertyInfo> distinctProps = new Dictionary<string, PropertyInfo>(30);
-			PropertyInfo prop;
-
-			foreach (var item in type.GetProperties())
-			{
-				string propName = item.Name;
-				if (distinctProps.TryGetValue(propName, out prop))
-				{
-					if (item.DeclaringType == type)
-					{
-						distinctProps[propName] = item;
-					}
-				}
-				else
-					distinctProps.Add(propName, item);
-			}
-
-			return new List<PropertyInfo>(distinctProps.Values);
-		}
-
-		protected void GenerateSimplePropsSetter(
-			IEnumerable<PropertyInfo> props,
-			ILGenerator ilOut,
-			Type targetClassType,
-			int schemeId,
-			DataTable schemaTable,
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo,
-			bool generateExtractNested
-			)
-		{
-			int propIndex = 0;
-
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping.GetType() == typeof(DataColumnMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
-
-					CreateExtractScalar(
-						ilOut,
-						targetClassType,
-						prop,
-						null,
-						mapping as DataColumnMapAttribute,
-						schemaTable,
-						propIndex++);
-
-					extractInfo.PropColumns.Add(mapping.MappingName);
-				}
-				else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
-
-					CreateExtractNested(
-						ilOut,
-						targetClassType,
-						prop,
-						mapping as DataRelationMapAttribute);
-				}
-			}
-		}
-
-		protected void GenerateNestedPropsSetter(
-			IEnumerable<PropertyInfo> props,
-			ILGenerator ilOut,
-			Type targetClassType,
-			int schemeId,
-			DataTable schemaTable,
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo,
-			bool generateExtractNested
-			)
-		{
-			int complexPropIndex = 0;
-			foreach (PropertyInfo prop in props)
-			{
-				DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping.GetType() == typeof(ComplexDataMapAttribute))
-				{
-					Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + prop.PropertyType.Name);
-
-					GenerateExtractComplex(
-						ilOut,
-						prop,
-						extractInfo.SubTypes[complexPropIndex++].FillMethod);
-				}
-			}
-		}
-
-		protected void GenerateSimpleFieldSetter(
-			ILGenerator ilOut,
-			Type targetClassType,
-			int schemeId,
-			DataTable schemaTable,
-			GetPropertyMapping getPropertyMapping,
-			ExtractInfo extractInfo,
-			bool generateExtractNested
-		)
-		{
-			int propIndex = 0;
-			FieldInfo[] fields = targetClassType.GetFields();
-
-			foreach (FieldInfo field in fields)
-			{
-				DataMapAttribute mapping = getPropertyMapping(field, schemeId);
-				if (mapping == null)
-					continue;
-
-				if (mapping.GetType() == typeof(DataColumnMapAttribute))
-				{
-					Debug.WriteLine("Property " + field.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
-
-					CreateExtractScalar(
-						ilOut,
-						targetClassType,
-						null,
-						field,
-						mapping as DataColumnMapAttribute,
-						schemaTable,
-						propIndex++);
-
-					extractInfo.PropColumns.Add(mapping.MappingName);
-				}
-			}
-		}
-
-
-		protected abstract void CreateExtractScalar(
-			ILGenerator ilOut, 
-			Type targetClassType, 
-			PropertyInfo prop,
-			FieldInfo field,
-			DataColumnMapAttribute mapping, 
-			DataTable schemaTable, 
-			int propIndex);
-
-		protected abstract void CreateExtractNested(
-			ILGenerator ilOut, 
-			Type targetClassType, 
-			PropertyInfo prop, 
-			DataRelationMapAttribute mapping);
-
-
-		protected void GenerateMethodHeader(ILGenerator ilOut)
+		public void GenerateMethodHeader(ILGenerator ilOut)
 		{
 			ilOut.DeclareLocal(typeof(object));
 			ilOut.DeclareLocal(typeof(int));
 		}
 
-		protected void GenerateExtractComplex(ILGenerator ilOut, PropertyInfo prop, MethodInfo subExtract)
+		public void GenerateExtractComplex(
+			ILGenerator ilOut,
+			PropertyInfo prop,
+			Type subType,
+			MethodInfo subExtract)
 		{
 			#region Algorithm
 			//PropType obj = mt.Prop1;
@@ -275,7 +86,7 @@ namespace SimpleORM.PropertySetterGenerator
 			//L_0019: call void DataMapComp.Program::Method(class DataMapComp.Item, class [System.Data]System.Data.IDataReader)
 			//L_001e: ret 
 
-			LocalBuilder locPropValue = ilOut.DeclareLocal(prop.PropertyType);
+			LocalBuilder locPropValue = ilOut.DeclareLocal(subType);
 			Label lblAfterIf = ilOut.DefineLabel();
 
 			ilOut.Emit(OpCodes.Ldarg_0);
@@ -286,10 +97,10 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_2);
 			ilOut.EmitCall(OpCodes.Callvirt, _GetObjectBuilder, null); //get_ObjectBuilder
-			ilOut.Emit(OpCodes.Ldtoken, prop.PropertyType);
+			ilOut.Emit(OpCodes.Ldtoken, subType);
 			ilOut.EmitCall(OpCodes.Call, _GetType, null);
 			ilOut.EmitCall(OpCodes.Callvirt, _CreateObject, null); //CreateObject
-			ilOut.Emit(OpCodes.Castclass, prop.PropertyType);
+			ilOut.Emit(OpCodes.Castclass, subType);
 			ilOut.Emit(OpCodes.Stloc, locPropValue);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc, locPropValue);
@@ -321,6 +132,296 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.EmitCall(OpCodes.Call, subExtract, null); // extract
 		}
+
+
+		//protected void GenerateSetterMethod(
+		//   ILGenerator ilOut,
+		//   Type targetClassType,
+		//   int schemeId,
+		//   DataTable schemaTable,
+		//   ExtractInfo extractInfo,
+		//   bool generateExtractNested)
+		//{
+		//   List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
+		//   GenerateMethodHeader(ilOut);
+
+		//   Debug.WriteLine("GenerateSetterMethod for " + targetClassType.Name);
+
+		//   GeneratePropSetter(
+		//      props,
+		//      ilOut,
+		//      targetClassType,
+		//      schemeId,
+		//      schemaTable,
+		//      extractInfo,
+		//      generateExtractNested);
+
+		//   GenerateComplexPropsSetter(
+		//      props,
+		//      ilOut,
+		//      schemeId,
+		//      extractInfo
+		//      );
+
+		//   GenerateSimpleFieldSetter(
+		//      ilOut,
+		//      targetClassType,
+		//      schemeId,
+		//      schemaTable,
+		//      getPropertyMapping,
+		//      //extractInfo,
+		//      generateExtractNested);
+			
+		//   ilOut.Emit(OpCodes.Ret);
+		//}
+
+
+
+		//protected void GeneratePropSetter(
+		//   IEnumerable<PropertyInfo> props,
+		//   ILGenerator ilOut,
+		//   Type targetClassType,
+		//   int schemeId,
+		//   DataTable schemaTable,
+		//   ExtractInfo extractInfo,
+		//   bool generateExtractNested
+		//   )
+		//{
+		//   int propIndex = 0;
+
+		//   foreach (DataColumnMapAttribute columnMap in extractInfo.PropColumns)
+		//   {
+		//      Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+		//      CreateExtractScalar(
+		//         ilOut,
+		//         targetClassType,
+		//         prop,
+		//         null,
+		//         columnMap,
+		//         schemaTable,
+		//         propIndex++);
+		//   }
+
+
+
+
+
+
+
+		//   int propIndex = 0;
+
+		//   foreach (PropertyInfo prop in props)
+		//   {
+		//      DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
+		//      if (mapping == null)
+		//         continue;
+
+		//      if (mapping.GetType() == typeof(DataColumnMapAttribute))
+		//      {
+		//         Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+		//         CreateExtractScalar(
+		//            ilOut,
+		//            targetClassType,
+		//            prop,
+		//            null,
+		//            mapping as DataColumnMapAttribute,
+		//            schemaTable,
+		//            propIndex++);
+
+		//         //extractInfo.PropColumns.Add(mapping.MappingName);
+		//      }
+		//      else if (generateExtractNested && mapping.GetType() == typeof(DataRelationMapAttribute))
+		//      {
+		//         Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+		//         CreateExtractNested(
+		//            ilOut,
+		//            targetClassType,
+		//            prop,
+		//            mapping as DataRelationMapAttribute);
+		//      }
+		//   }
+		//}
+
+		//protected void GenerateComplexPropsSetter(
+		//   IEnumerable<PropertyInfo> props,
+		//   ILGenerator ilOut,
+		//   int schemeId,
+		//   GetPropertyMapping getPropertyMapping,
+		//   ExtractorInfoCache extractors
+		//   )
+		//{
+		//   //int complexPropIndex = 0;
+		//   foreach (PropertyInfo prop in props)
+		//   {
+		//      DataMapAttribute mapping = getPropertyMapping(prop, schemeId);
+		//      if (mapping == null)
+		//         continue;
+
+		//      if (mapping.GetType() == typeof(ComplexDataMapAttribute))
+		//      {
+		//         ComplexDataMapAttribute cmap = (ComplexDataMapAttribute)mapping;
+		//         Type subType = cmap.ItemType ?? prop.PropertyType;
+
+		//         Debug.WriteLine("Property " + prop.Name.PadRight(25) + " mapped to " + subType.Name);
+
+		//         MethodInfo extractMethod;
+		//         if (!extractors.TryGetMethodInfo(subType, DataSourceType, cmap.NestedSchemeId, out extractMethod))
+		//            throw new DataMapperException("Can not find extractor method for " + subType.Name);
+
+		//         GenerateExtractComplex(
+		//            ilOut,
+		//            prop,
+		//            subType,
+		//            extractMethod
+		//            );
+		//      }
+		//   }
+		//}
+
+		//protected void GenerateSimpleFieldSetter(
+		//   ILGenerator ilOut,
+		//   Type targetClassType,
+		//   int schemeId,
+		//   DataTable schemaTable,
+		//   GetPropertyMapping getPropertyMapping,
+		//   //ExtractInfo extractInfo,
+		//   bool generateExtractNested
+		//)
+		//{
+		//   int propIndex = 0;
+		//   FieldInfo[] fields = targetClassType.GetFields();
+
+		//   foreach (FieldInfo field in fields)
+		//   {
+		//      DataMapAttribute mapping = getPropertyMapping(field, schemeId);
+		//      if (mapping == null)
+		//         continue;
+
+		//      if (mapping.GetType() == typeof(DataColumnMapAttribute))
+		//      {
+		//         Debug.WriteLine("Property " + field.Name.PadRight(25) + " mapped to " + mapping.MappingName + "(" + mapping.SchemeId + ")");
+
+		//         CreateExtractScalar(
+		//            ilOut,
+		//            targetClassType,
+		//            null,
+		//            field,
+		//            mapping as DataColumnMapAttribute,
+		//            schemaTable,
+		//            propIndex++);
+
+		//         //extractInfo.PropColumns.Add(mapping.MappingName);
+		//      }
+		//   }
+		//}
+
+
+		//protected abstract void CreateExtractScalar(
+		//   ILGenerator ilOut, 
+		//   Type targetClassType, 
+		//   PropertyInfo prop,
+		//   FieldInfo field,
+		//   string dbColumnName, 
+		//   DataTable schemaTable, 
+		//   int propIndex);
+
+		//protected abstract void CreateExtractNested(
+		//   ILGenerator ilOut, 
+		//   Type targetClassType, 
+		//   PropertyInfo prop, 
+		//   DataRelationMapAttribute mapping);
+
+		
+		//protected void GenerateExtractComplex(
+		//   ILGenerator ilOut, 
+		//   PropertyInfo prop, 
+		//   Type subType,
+		//   MethodInfo subExtract)
+		//{
+		//   #region Algorithm
+		//   //PropType obj = mt.Prop1;
+		//   //if (obj == null)
+		//   //{
+		//   //   obj = (PropType)mapper.ObjectBuilder.CreateObject(typeof(PropType));
+		//   //   mt.Prop1 = obj;
+		//   //}
+		//   //
+		//   //FillerMethod(obj, data, mapper, columnsXX, colIx);
+		//   #endregion
+
+		//   //ilGen.Emit(OpCodes.Ldarg, 4);
+		//   //ilGen.Emit(OpCodes.Ldc_I4, 1);
+		//   //ilGen.Emit(OpCodes.Add);
+		//   //ilGen.Emit(OpCodes.Starg, 4);
+		//   //ilGen.Emit(OpCodes.Ldarg, 4);
+
+		//   //.maxstack 2
+		//   //.locals init (
+		//   //    [0] string str)
+		//   //L_0000: ldarg.0 
+		//   //L_0001: callvirt instance string DataMapComp.Item::get_StrProp()
+		//   //L_0006: stloc.0 
+		//   //L_0007: ldloc.0 
+		//   //L_0008: brtrue.s L_0017
+		//   //L_000a: ldstr "asd"
+		//   //L_000f: stloc.0 
+		//   //L_0010: ldarg.0 
+		//   //L_0011: ldloc.0 
+		//   //L_0012: callvirt instance void DataMapComp.Item::set_StrProp(string)
+		//   //L_0017: ldarg.0 
+		//   //L_0018: ldnull 
+		//   //L_0019: call void DataMapComp.Program::Method(class DataMapComp.Item, class [System.Data]System.Data.IDataReader)
+		//   //L_001e: ret 
+
+		//   LocalBuilder locPropValue = ilOut.DeclareLocal(subType);
+		//   Label lblAfterIf = ilOut.DefineLabel();
+
+		//   ilOut.Emit(OpCodes.Ldarg_0);
+		//   ilOut.EmitCall(OpCodes.Callvirt, prop.GetGetMethod(), null);
+		//   ilOut.Emit(OpCodes.Stloc, locPropValue);
+		//   ilOut.Emit(OpCodes.Ldloc, locPropValue);
+		//   ilOut.Emit(OpCodes.Brtrue, lblAfterIf);
+
+		//   ilOut.Emit(OpCodes.Ldarg_2);
+		//   ilOut.EmitCall(OpCodes.Callvirt, _GetObjectBuilder, null); //get_ObjectBuilder
+		//   ilOut.Emit(OpCodes.Ldtoken, subType);
+		//   ilOut.EmitCall(OpCodes.Call, _GetType, null);
+		//   ilOut.EmitCall(OpCodes.Callvirt, _CreateObject, null); //CreateObject
+		//   ilOut.Emit(OpCodes.Castclass, subType);
+		//   ilOut.Emit(OpCodes.Stloc, locPropValue);
+		//   ilOut.Emit(OpCodes.Ldarg_0);
+		//   ilOut.Emit(OpCodes.Ldloc, locPropValue);
+		//   ilOut.EmitCall(OpCodes.Callvirt, prop.GetSetMethod(), null);
+
+		//   ilOut.MarkLabel(lblAfterIf);
+
+		//   //L_0000: ldarg.0 
+		//   //L_0001: dup 
+		//   //L_0002: ldind.i4 
+		//   //L_0003: ldc.i4.1 
+		//   //L_0004: add 
+		//   //L_0005: stind.i4 
+		//   //L_0006: ldarg.0 
+		//   //L_0007: call void DataMapComp.Program::Method4(int32&)
+
+		//   ilOut.Emit(OpCodes.Ldarg, 4);
+		//   ilOut.Emit(OpCodes.Dup);
+		//   ilOut.Emit(OpCodes.Ldind_I4);
+		//   ilOut.Emit(OpCodes.Ldc_I4, 1);
+		//   ilOut.Emit(OpCodes.Add);
+		//   ilOut.Emit(OpCodes.Stind_I4);
+
+		//   ilOut.Emit(OpCodes.Ldloc, locPropValue);
+		//   ilOut.Emit(OpCodes.Ldarg_1);
+		//   ilOut.Emit(OpCodes.Ldarg_2);
+		//   ilOut.Emit(OpCodes.Ldarg_3);
+		//   ilOut.Emit(OpCodes.Ldarg, 4);
+
+		//   ilOut.EmitCall(OpCodes.Call, subExtract, null); // extract
+		//}
 
 		protected SetterType GetSetterType(PropertyInfo prop, Type columnType)
 		{
