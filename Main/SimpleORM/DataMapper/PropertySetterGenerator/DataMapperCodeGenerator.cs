@@ -73,12 +73,12 @@ namespace SimpleORM.PropertySetterGenerator
 				MethodAttributes.Public | MethodAttributes.Static,
 				CallingConventions.Standard, typeof(void),
 				new Type[] { 
-					targetType,								// object
-					typeof(IDataReader),					// reader
-					typeof(DataMapper),					// mapper
-					typeof(List<List<int>>),			// columns
+					targetType,						// object
+					typeof(IDataReader),			// reader
+					typeof(DataMapper),				// mapper
+					typeof(List<List<int>>),		// columns
 					Type.GetType("System.Int32&"),	// columnSetIx
-					typeof(List<List<int>>),			// keyColumns
+					typeof(List<List<int>>),		// keyColumns
 				});
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
@@ -141,7 +141,7 @@ namespace SimpleORM.PropertySetterGenerator
 			//ilGen.Emit(OpCodes.Callvirt, _CreateObject);
 			ilGen.Emit(OpCodes.Stloc, locObj);
 
-			ilGen.Emit(OpCodes.Ldloc, locObj);	// object
+			ilGen.Emit(OpCodes.Ldloc, locObj);		// object
 			ilGen.Emit(OpCodes.Ldarg_1);			// reader
 			ilGen.Emit(OpCodes.Ldarg_2);			// mapper
 			ilGen.Emit(OpCodes.Ldarg_3);			// columnsList

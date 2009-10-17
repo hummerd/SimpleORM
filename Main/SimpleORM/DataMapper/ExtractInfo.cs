@@ -146,6 +146,27 @@ namespace SimpleORM
 				_TableName = value;
 			}
 		}
+
+
+		public List<ExtractInfo> FindByTable(int id, string name)
+		{
+			List<ExtractInfo> result = new List<ExtractInfo>();
+
+			if (id == TableID || name == TableName)
+			{
+				result.Add(this);
+				return result;
+			}
+
+			foreach (RelationExtractInfo item in ChildTypes)
+			{
+				ExtractInfo ei = item.ExtractInfo;
+				if (id == ei.TableID || name == ei.TableName)
+					result.Add(ei);
+			}
+
+			return result;
+		}
 	}
 
 	public class RelationExtractInfo : MemberExtractInfo

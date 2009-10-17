@@ -156,62 +156,65 @@ namespace SimpleORM
 		{
 			List<List<int>> columnIndexes = null;
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
-			//bool topLevel = false;
-			Dictionary<string, Dictionary<object, object>> tempResult = new Dictionary<string, Dictionary<object, object>>(); //table name //pk //object
-			Dictionary<string, Dictionary<object, List<object>>> fkIndex = new Dictionary<string, Dictionary<object, List<object>>>(); //table name //pk //object
 
-			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
-			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
+			Dictionary<ExtractInfo,
+				Dictionary<object, object>> tempPrimary = new Dictionary<ExtractInfo, Dictionary<object, object>>(); //table name //pk //object
+			Dictionary<ExtractInfo,
+				Dictionary<object, List<object>>> tempForeign = new Dictionary<ExtractInfo, Dictionary<object, List<object>>>(); //table name //pk //object
 
 			int tableIx = 0;
 			do
 			{
-				bool hasData = reader.Read();
-				if (!hasData)
+				if (!reader.Read())
 					continue;
 
 				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-				bool topLevel =
-					extractInfo.TableID == tableIx ||
-					extractInfo.TableName == schemeTable.Columns[0].ColumnName;
+				List<ExtractInfo> assosiatedEI = extractInfo.FindByTable(tableIx++, schemeTable.TableName);
 
-				Dictionary<object, object> tr;
-				ExtractObjects(
-				   reader,
-				   objectType,
-				   schemeId,
-				   extractInfo,
-				   out tr,
-				   null,
-				   columnIndexes,
-				   topLevel ? objectList : null);
+				for (int i = 0; i < assosiatedEI.Count; i++)
+				{
+					ExtractInfo currentEI = assosiatedEI[i];
+					columnIndexes = GetSubColumnsIndexes(schemeTable, currentEI);
 
+					//		   key     entity
+					Dictionary<object, object> pkObjects;
+					Dictionary<object, List<object>> fkObjects;
 
+					ExtractObjects(
+					   reader,
+					   currentEI,
+					   out pkObjects,
+					   out fkObjects,
+					   columnIndexes,
+					   currentEI == extractInfo ? objectList : null);
+
+					tempPrimary.Add(currentEI, pkObjects);
+					tempForeign.Add(currentEI, fkObjects);
+				}
 			} while (reader.NextResult());
 
-			LinkObjects(tempResult, fkIndex);
+			LinkObjects(extractInfo, tempPrimary, tempForeign);
 		}
 
 		protected void ExtractObjects(
 			IDataReader reader,
-			Type objectType,
-			int schemeId,
 			ExtractInfo extractInfo,
-			out Dictionary<object, object> tempResult,
-			List<IDictionary> fkIndex,
+			out Dictionary<object, object> pkObjects,
+			out Dictionary<object, List<object>> fkObjects,
 			List<List<int>> columnIndexes,
 			IList objectList
 			)
 		{
-			Dictionary<object, object> pkObjects = new Dictionary<object, object>();
-			Dictionary<object, List<object>> fkObjects = new Dictionary<object, List<object>>();
+			pkObjects = new Dictionary<object, object>();
+			fkObjects = new Dictionary<object, List<object>>();
+
 			KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
 			List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
 			MethodInfo method = extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource];
 
 			do
 			{
-				object obj = _ObjectBuilder.CreateObject(objectType);
+				object obj = _ObjectBuilder.CreateObject(extractInfo.TargetType);
 				//Fill object
 				CallExtractorMethod(method, obj, reader, columnIndexes);
 
@@ -245,9 +248,6 @@ namespace SimpleORM
 					objectList.Add(obj);
 				}
 			} while (reader.Read());
-
-			tempResult = pkObjects;
-			fkIndex.Add(fkObjects);
 		}
 		
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
@@ -404,9 +404,24 @@ namespace SimpleORM
 		}
 
 
-		protected void LinkObjects(Dictionary<string, Dictionary<object, object>> tempResult, Dictionary<string, Dictionary<object, List<object>>> fkIndex)
+		protected void LinkObjects(
+			ExtractInfo extractInfo,
+			Dictionary<ExtractInfo, Dictionary<object, object>> tempPrimary,
+			Dictionary<ExtractInfo, Dictionary<object, List<object>>> tempForeign)
 		{
-			throw new NotImplementedException();
+			Dictionary<object, object> pkObjects = tempPrimary[extractInfo];
+
+			for (int i = 0; i < extractInfo.ChildTypes.Count; i++)
+			{
+				Dictionary<object, List<object>> fkObjects = tempForeign[extractInfo.ChildTypes[i].ExtractInfo];
+
+				foreach (var item in pkObjects)
+				{
+					object parent = item.Value;
+					IList children = fkObjects[item.Key];
+					//parent.Cjildren.Add(children);
+				}
+			}
 		}
 
 		protected void FillObjectListInternal<TRowItem>(IList objectList, Type objectType, ICollection dataCollection, int schemeId, DataRowExtractor<TRowItem> rowExtractor, bool clearObjectCache)
@@ -528,6 +543,7 @@ namespace SimpleORM
 					(Type)dr["DataType"]);
 			}
 
+			result.TableName = result.Columns[0].ColumnName;
 			return result;
 		}
 	}
