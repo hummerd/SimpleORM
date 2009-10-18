@@ -31,8 +31,8 @@ namespace SimpleORM.PropertySetterGenerator
 			MethodBuilder getHash = tb.DefineMethod("GetHashCode",
 				MethodAttributes.Public | MethodAttributes.ReuseSlot |
 				MethodAttributes.Virtual | MethodAttributes.HideBySig,
-				typeof(bool),
-				new Type[] { typeof(object) });
+				typeof(int),
+				null);
 	
 			ILGenerator getHashGen = getHash.GetILGenerator();
 
@@ -47,7 +47,7 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblRetFalse = equalsGen.DefineLabel();
 
 			equalsGen.Emit(OpCodes.Ldarg_1);
-			equalsGen.Emit(OpCodes.Unbox_Any, tb);
+			equalsGen.Emit(OpCodes.Castclass, tb);
 			equalsGen.Emit(OpCodes.Stloc_0);
 			
 			bool needCeq = false;
@@ -71,7 +71,7 @@ namespace SimpleORM.PropertySetterGenerator
 				//L_0011: constrained [mscorlib]System.DateTime
 				//L_0017: callvirt instance int32 [mscorlib]System.Object::GetHashCode()
 				getHashGen.Emit(OpCodes.Ldarg_0);
-				getHashGen.Emit(OpCodes.Ldfld, fb);
+				getHashGen.Emit(OpCodes.Ldflda, fb);
 				
 				//Generate part of Equals method for field generated above
 				
@@ -90,8 +90,16 @@ namespace SimpleORM.PropertySetterGenerator
 				}
 				else
 					throw new System.Exception();
+    
+				MethodInfo getHashMethod = fieldType.GetMethod(
+					"GetHashCode", 
+					BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, 
+					null, 
+					new Type[]{}, 
+					null
+				);
 
-				getHashGen.Emit(OpCodes.Callvirt, _GetHash);
+				getHashGen.Emit(OpCodes.Call, getHashMethod);
 
 				if (first)
 				{
@@ -103,9 +111,13 @@ namespace SimpleORM.PropertySetterGenerator
 				}
 			}
 
-			if (needCeq)
-				equalsGen.Emit(OpCodes.Ceq);
+			getHashGen.Emit(OpCodes.Ret);
 
+			//if (needCeq)
+			//    equalsGen.Emit(OpCodes.Ceq);
+
+			equalsGen.Emit(OpCodes.Ldc_I4_1);
+			equalsGen.Emit(OpCodes.Ret);
 			equalsGen.MarkLabel(lblRetFalse);
 			equalsGen.Emit(OpCodes.Ldc_I4_0);
 			equalsGen.Emit(OpCodes.Ret);

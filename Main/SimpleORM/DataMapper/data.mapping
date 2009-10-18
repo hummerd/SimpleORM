@@ -1,6 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <MappingDefinition>
-	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0">
+	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0" tableIx="0">
+    <RefKey key="Primary1">
+      <Column name="ParentId"/>
+    </RefKey>
+    <RefKey ref="Primary1" >
+      <Column name="ParentId"/>
+    </RefKey>
 		<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>
 		<PropetyMapping propertyName="ValuePropNI" dataColumnName="Field1"/>
 		<PropetyMapping propertyName="RefProp"  dataColumnName="Field2"/>

@@ -125,27 +125,26 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 
 
-		protected SetterType GetSetterType(PropertyInfo prop, Type columnType)
+		protected SetterType GetSetterType(Type storeType, Type columnType)
 		{
-			Type propType = prop.PropertyType;
-			bool isNullable = propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Nullable<>);
+			bool isNullable = storeType.IsGenericType && storeType.GetGenericTypeDefinition() == typeof(Nullable<>);
 
-			if (isNullable && columnType == propType.GetGenericArguments()[0])
+			if (isNullable && columnType == storeType.GetGenericArguments()[0])
 				return SetterType.Nullable;
-			else if (isNullable && columnType != propType.GetGenericArguments()[0])
+			else if (isNullable && columnType != storeType.GetGenericArguments()[0])
 				return SetterType.NullableNI;
-			else if (propType.IsValueType && columnType == propType)
+			else if (storeType.IsValueType && columnType == storeType)
 			{
-				if (propType.IsPrimitive)
+				if (storeType.IsPrimitive)
 					return SetterType.Value;
 				else
 					return SetterType.Struct;
 			}
-			else if (propType.IsValueType && columnType != propType)
+			else if (storeType.IsValueType && columnType != storeType)
 			{
-				if (propType.IsEnum)
+				if (storeType.IsEnum)
 					return SetterType.Enum;
-				else if (propType.IsPrimitive)
+				else if (storeType.IsPrimitive)
 					return SetterType.ValueNI;
 				else
 					return SetterType.StructNI;
@@ -154,45 +153,45 @@ namespace SimpleORM.PropertySetterGenerator
 				return SetterType.Reference;
 		}
 
-		protected void CreateSetNullValue(SetterType setterType, ILGenerator ilGen, Type propType, MethodInfo setProp)
+		protected void CreateSetNullValue(SetterType setterType, ILGenerator ilGen, Type propType)
 		{
 			switch (setterType)
 			{
 				case SetterType.Enum:
-					GenerateSetDefault(ilGen, setProp);
+					GenerateSetDefault(ilGen);
 					break;
 
 				case SetterType.Value:
-					GenerateSetDefault(ilGen, setProp);
+					GenerateSetDefault(ilGen);
 					break;
 
 				case SetterType.ValueNI:
-					GenerateSetDefault(ilGen, setProp);
+					GenerateSetDefault(ilGen);
 					break;
 
 				case SetterType.Struct:
-					GenerateSetEmpty(ilGen, propType, setProp);
+					GenerateSetEmpty(ilGen, propType);
 					break;
 
 				case SetterType.StructNI:
-					GenerateSetEmpty(ilGen, propType, setProp);
+					GenerateSetEmpty(ilGen, propType);
 					break;
 
 				case SetterType.Nullable:
-					GenerateSetEmpty(ilGen, propType, setProp);
+					GenerateSetEmpty(ilGen, propType);
 					break;
 
 				case SetterType.NullableNI:
-					GenerateSetEmpty(ilGen, propType, setProp);
+					GenerateSetEmpty(ilGen, propType);
 					break;
 
 				case SetterType.Reference:
-					GenerateSetNull(ilGen, setProp);
+					GenerateSetNull(ilGen);
 					break;
 			}
 		}
 
-		protected void GenerateSetEmpty(ILGenerator ilOut, Type propType, MethodInfo setProp)
+		protected void GenerateSetEmpty(ILGenerator ilOut, Type propType)
 		{
 			LocalBuilder loc = ilOut.DeclareLocal(propType);
 
@@ -200,21 +199,26 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldloca, loc);
 			ilOut.Emit(OpCodes.Initobj, propType);
 			ilOut.Emit(OpCodes.Ldloc, loc);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetNull(ILGenerator ilOut, MethodInfo setProp)
+		protected void GenerateSetNull(ILGenerator ilOut)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldnull);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetDefault(ILGenerator ilOut, MethodInfo setProp)
+		protected void GenerateSetDefault(ILGenerator ilOut)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldc_I4, 0);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+		}
+
+		protected void GenerateSet(ILGenerator ilOut, MethodInfo setProp, FieldInfo field)
+		{
+			if (field != null)
+				ilOut.Emit(OpCodes.Stfld, field);
+			else
+				ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 	}
 }

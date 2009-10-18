@@ -252,6 +252,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 			//Cache miss, create new one
 			result = new ExtractInfo(targetClassType, schemeId);
+			int tableIx;
+			string tableName;
+			GetTableID(targetClassType, schemeId, out tableIx, out tableName);
+			result.TableID = tableIx;
+			result.TableName = tableName;
+
 			_ExtractInfoCache.Add(targetClassType, schemeId, result);
 
 			List<PropertyInfo> props = ReflectHelper.GetProps(targetClassType);
@@ -406,13 +412,16 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilGen.Emit(OpCodes.Ret);
 			Type type = typeBuilder.CreateType();
-			extractInfo.FillMethod[methodGenerator.DataSourceType] = type.GetMethod("SetProps_" + extractInfo.TargetType);
+			extractInfo.FillMethod[methodGenerator.DataSourceType] = 
+				type.GetMethod("SetProps_" + extractInfo.TargetType);
 
 			//Extract info about primary Key
 			if (extractInfo.PrimaryKeyInfo != null)
 			{
 				extractInfo.PrimaryKeyInfo = GenerateKey(
 					extractInfo.PrimaryKeyInfo,
+					true,
+					extractInfo.TargetType,
 					extractInfo.SchemeId,
 					dtSource,
 					generatorSourceType);
@@ -423,7 +432,13 @@ namespace SimpleORM.PropertySetterGenerator
 			foreach (KeyInfo fk in extractInfo.ForeignKeysInfo)
 			{
 				foreignKeysInfo.Add(
-					GenerateKey(fk, extractInfo.SchemeId, dtSource, generatorSourceType)
+					GenerateKey(
+						fk,
+						false,
+						extractInfo.TargetType,
+						extractInfo.SchemeId, 
+						dtSource, 
+						generatorSourceType)
 					);
 			}
 
@@ -435,7 +450,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected GetPropertyMapping GetMappingMethod(Type targetClassType, int schemeId)
 		{
-			if (_XmlDocument != null && IsXmlMappingExists(targetClassType, schemeId))
+			if (IsXmlMappingExists(targetClassType, schemeId))
 			{
 				return GetMappingFromXml;
 			}
@@ -490,20 +505,64 @@ namespace SimpleORM.PropertySetterGenerator
 		
 		protected KeyInfo GetPrimaryKey(Type targetClassType, int schemeId)
 		{
+			if (IsXmlMappingExists(targetClassType, schemeId))
+			{
+				List<KeyInfo> keys = GetKeysFromXmlMapping(targetClassType, schemeId, true);
+				if (keys.Count > 0)
+					return keys[0];
+			}
+
 			return null;
 		}
 
 		protected List<KeyInfo> GetForeignKeys(Type targetClassType, int schemeId)
 		{
+			if (IsXmlMappingExists(targetClassType, schemeId))
+			{
+				return GetKeysFromXmlMapping(targetClassType, schemeId, false);
+			}
+
 			return new List<KeyInfo>();
 		}
 
-		protected KeyInfo GenerateKey(KeyInfo pk, int schemeId, DataTable dtSource, Type generatorSourceType)
+        protected List<KeyInfo> GetKeysFromXmlMapping(Type targetClassType, int schemeId, bool primary)
+        {
+            XmlNodeList keys = FindKeys(targetClassType, schemeId);
+			List<KeyInfo> result = new List<KeyInfo>(keys.Count);
+
+			foreach (XmlNode item in keys)
+			{
+				if (item.NodeType == XmlNodeType.Comment)
+					continue;
+
+				XmlAttribute att = item.Attributes[primary ? "key" : "ref"];
+				if (att != null)
+				{
+					KeyInfo ki = new KeyInfo();
+					ki.Name = att.Value;
+
+					foreach (XmlNode clmn in item.ChildNodes)
+					{
+						if (clmn.NodeType == XmlNodeType.Comment)
+							continue;
+
+						ki.Columns.Add(clmn.Attributes["name"].Value);
+					}
+
+					result.Add(ki);
+				}
+			}
+
+			return result;
+        }
+
+		protected KeyInfo GenerateKey(KeyInfo pk, bool primary, Type targetType, int schemeId, DataTable dtSource, Type generatorSourceType)
 		{
 			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
+			string key = pk.Name + (primary ? "_pk_" : "_fk_") + targetType;
 
 			pk.KeyType = _KeyGenerator.GenerateKeyType(
-				pk.Name,
+				key,
 				dtSource,
 				pk.Columns,
 				methodGenerator,
@@ -532,6 +591,7 @@ namespace SimpleORM.PropertySetterGenerator
 				_AsmBuilder = Thread.GetDomain().DefineDynamicAssembly(
 					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.Run);
 				_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod");
+				_KeyGenerator = new KeyClassGenerator(_ModuleBuilder);
 			}
 
 			string className = "DataPropertySetter_" + targetClassType.FullName;
@@ -566,6 +626,24 @@ namespace SimpleORM.PropertySetterGenerator
 			methodBuilder.DefineParameter(5, ParameterAttributes.Out, "columnsIx");
 
 			return methodBuilder;
+		}
+
+		protected void GetTableID(Type targetClassType, int schemeId, out int tableIx, out string tableName)
+		{ 
+			tableIx = -1;
+			tableName = String.Empty;
+
+			if (IsXmlMappingExists(targetClassType, schemeId))
+			{
+				XmlNode objMap = FindObjectMapping(targetClassType, schemeId);
+				XmlAttribute tix = objMap.Attributes["tableIx"];
+				if (tix != null)
+					tableIx = int.Parse(tix.Value);
+
+				XmlAttribute tn = objMap.Attributes["tableName"];
+				if (tn != null)
+					tableName = tn.Value;
+			}
 		}
 
 		/// <summary>
@@ -605,10 +683,10 @@ namespace SimpleORM.PropertySetterGenerator
 		protected DataMapAttribute GetMappingFromXml(MemberInfo prop, int schemeId)
 		{
 			//Looking for node in reflected type
-			XmlNode xmlMapping = FindMapping(prop.ReflectedType, schemeId, prop);
+			XmlNode xmlMapping = FindPropMapping(prop.ReflectedType, schemeId, prop);
 			if (xmlMapping == null)
 			{
-				xmlMapping = FindMapping(prop.DeclaringType, schemeId, prop);
+				xmlMapping = FindPropMapping(prop.DeclaringType, schemeId, prop);
 				if (xmlMapping == null)
 					return null;
 			}
@@ -644,14 +722,27 @@ namespace SimpleORM.PropertySetterGenerator
 					String.IsNullOrEmpty(att.Value) ? prop.Name : att.Value, schemeId);
 		}
 
+		protected XmlNode FindObjectMapping(Type targetType, int schemeId)
+		{
+			//Generate XPath Query
+			string qry = "/MappingDefinition/TypeMapping{0}";
+			string type = targetType.Assembly.GetName().Name;
+			type = type + ", " + targetType.FullName;
+			string typeClause = "[@typeName=\"" + type + "\" and @schemeId=\"" + schemeId + "\"]";
+			qry = String.Format(qry, typeClause);
+
+			//Looking for node
+			return _XmlDocument.SelectSingleNode(qry);
+		}
+
 		/// <summary>
 		/// Looks for mapping definition in reflected type or if it is not found, looks in declared type.
 		/// </summary>
 		/// <param name="propType"></param>
 		/// <param name="schemeId"></param>
 		/// <param name="prop"></param>
-		/// <returns></returns>
-		protected XmlNode FindMapping(Type propType, int schemeId, MemberInfo prop)
+		/// <returns></returns>s
+		protected XmlNode FindPropMapping(Type propType, int schemeId, MemberInfo prop)
 		{
 			//Generate XPath Query
 			string qry = "/MappingDefinition/TypeMapping{0}/PropetyMapping{1}";
@@ -664,6 +755,19 @@ namespace SimpleORM.PropertySetterGenerator
 			//Looking for node
 			return _XmlDocument.SelectSingleNode(qry);
 		}
+
+        protected XmlNodeList FindKeys(Type targetType, int schemeId)
+        {
+            //Generate XPath Query
+            string qry = "/MappingDefinition/TypeMapping{0}/RefKey";
+            string type = targetType.Assembly.GetName().Name;
+            type = type + ", " + targetType.FullName;
+            string typeClause = "[@typeName=\"" + type + "\" and @schemeId=\"" + schemeId + "\"]";
+            qry = String.Format(qry, typeClause);
+
+            //Looking for node
+            return _XmlDocument.SelectNodes(qry);
+        }
 
 		/// <summary>
 		/// Extracts nested type info from mapping definition

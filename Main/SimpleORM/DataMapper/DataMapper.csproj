@@ -69,6 +69,7 @@
     <Compile Include="ExtractInfo.cs" />
     <Compile Include="IObjectBuilder.cs" />
     <Compile Include="KeyInfo.cs" />
+    <Compile Include="KeyObjectIndex.cs" />
     <Compile Include="PropertySetterGenerator\DataMapperCodeGenerator.cs" />
     <Compile Include="PropertySetterGenerator\ExtractorInfoCache.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />

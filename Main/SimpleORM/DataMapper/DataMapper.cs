@@ -158,9 +158,9 @@ namespace SimpleORM
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
 
 			Dictionary<ExtractInfo,
-				Dictionary<object, object>> tempPrimary = new Dictionary<ExtractInfo, Dictionary<object, object>>(); //table name //pk //object
+                KeyObjectIndex> tempPrimary = new Dictionary<ExtractInfo, KeyObjectIndex>(); //table name //pk //object
 			Dictionary<ExtractInfo,
-				Dictionary<object, List<object>>> tempForeign = new Dictionary<ExtractInfo, Dictionary<object, List<object>>>(); //table name //pk //object
+                KeyObjectIndex> tempForeign = new Dictionary<ExtractInfo, KeyObjectIndex>(); //table name //pk //object
 
 			int tableIx = 0;
 			do
@@ -174,11 +174,25 @@ namespace SimpleORM
 				for (int i = 0; i < assosiatedEI.Count; i++)
 				{
 					ExtractInfo currentEI = assosiatedEI[i];
+					MethodInfo extractMethod = null;
+					currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
+
+					if (extractMethod == null)
+					{
+						_DMCodeGenerator.GenerateSetterMethod(
+							currentEI,
+							schemeTable,
+							DataReaderPSG.TypeOfDataSource
+						);
+
+						if (!currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod))
+							throw new InvalidOperationException("Failed to create setter method.");
+					}
+
 					columnIndexes = GetSubColumnsIndexes(schemeTable, currentEI);
 
-					//		   key     entity
-					Dictionary<object, object> pkObjects;
-					Dictionary<object, List<object>> fkObjects;
+                    KeyObjectIndex pkObjects;
+                    KeyObjectIndex fkObjects;
 
 					ExtractObjects(
 					   reader,
@@ -186,7 +200,8 @@ namespace SimpleORM
 					   out pkObjects,
 					   out fkObjects,
 					   columnIndexes,
-					   currentEI == extractInfo ? objectList : null);
+					   currentEI == extractInfo ? objectList : null,
+					   extractMethod);
 
 					tempPrimary.Add(currentEI, pkObjects);
 					tempForeign.Add(currentEI, fkObjects);
@@ -199,18 +214,18 @@ namespace SimpleORM
 		protected void ExtractObjects(
 			IDataReader reader,
 			ExtractInfo extractInfo,
-			out Dictionary<object, object> pkObjects,
-			out Dictionary<object, List<object>> fkObjects,
+            out KeyObjectIndex pkObjects,
+			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
-			IList objectList
+			IList objectList,
+			MethodInfo method
 			)
 		{
-			pkObjects = new Dictionary<object, object>();
-			fkObjects = new Dictionary<object, List<object>>();
+            pkObjects = new KeyObjectIndex();
+			fkObjects = new KeyObjectIndex();
 
 			KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
 			List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
-			MethodInfo method = extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource];
 
 			do
 			{
@@ -220,9 +235,9 @@ namespace SimpleORM
 
 				if (pkInfo != null)
 				{
-					object pk = _ObjectBuilder.CreateObject<DataTable>();
+					object pk = _ObjectBuilder.CreateObject(pkInfo.KeyType);
 					CallExtractorMethod(pkInfo.FillMethod, pk, reader, columnIndexes);
-					pkObjects.Add(pk, obj);
+					pkObjects.AddObject(pk, obj);
 				}
 
 				if (fkInfo.Count > 0)
@@ -231,15 +246,7 @@ namespace SimpleORM
 					{
 						object fk = _ObjectBuilder.CreateObject(item.KeyType);
 						CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
-
-						List<object> fko;
-						if (!fkObjects.TryGetValue(fk, out fko))
-						{
-							fko = new List<object>();
-							fkObjects.Add(fk, fko);
-						}
-
-						fko.Add(obj);
+						fkObjects.AddObject(fk, obj);
 					}
 				}
 
@@ -281,7 +288,7 @@ namespace SimpleORM
 				DataReaderPSG.TypeOfDataSource
 				);
 
-			if (extractInfo == null || extractInfo.FillMethod == null)
+			if (extractInfo == null)
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
 			//If there is no instance create it
@@ -406,10 +413,10 @@ namespace SimpleORM
 
 		protected void LinkObjects(
 			ExtractInfo extractInfo,
-			Dictionary<ExtractInfo, Dictionary<object, object>> tempPrimary,
-			Dictionary<ExtractInfo, Dictionary<object, List<object>>> tempForeign)
+            Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
+            Dictionary<ExtractInfo, KeyObjectIndex> tempForeign)
 		{
-			Dictionary<object, object> pkObjects = tempPrimary[extractInfo];
+			Dictionary<object, List<object>> pkObjects = tempPrimary[extractInfo];
 
 			for (int i = 0; i < extractInfo.ChildTypes.Count; i++)
 			{
@@ -417,9 +424,13 @@ namespace SimpleORM
 
 				foreach (var item in pkObjects)
 				{
-					object parent = item.Value;
+                    List<object> parentList = item.Value;
 					IList children = fkObjects[item.Key];
-					//parent.Cjildren.Add(children);
+
+                    foreach (var parent in parentList)
+                    {
+                        //parent.Cjildren.Add(children);
+                    }
 				}
 			}
 		}

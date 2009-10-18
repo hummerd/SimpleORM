@@ -38,7 +38,16 @@ namespace SimpleORM.PropertySetterGenerator
 			if (column < 0)
 				return;
 
-			MethodInfo targetProp = prop.GetSetMethod();
+			Type storeType;
+			MethodInfo setProp = null;
+
+			if (field != null)
+				storeType = field.FieldType;
+			else
+			{
+				storeType = prop.PropertyType;
+				setProp = prop.GetSetMethod();
+			}
 
 			Label lblElse = ilOut.DefineLabel();
 			Label lblEnd = ilOut.DefineLabel();
@@ -47,13 +56,15 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Bne_Un, lblElse);
 
-			SetterType setterType = GetSetterType(prop, schemaTable.Columns[column].DataType);
-			CreateSetNullValue(setterType, ilOut, prop.PropertyType, targetProp);
+			SetterType setterType = GetSetterType(storeType, schemaTable.Columns[column].DataType);
+			CreateSetNullValue(setterType, ilOut, storeType);
+			GenerateSet(ilOut, setProp, field);
 
 			ilOut.Emit(OpCodes.Br, lblEnd);
 			ilOut.MarkLabel(lblElse);
 
-			CreateSetNotNullValue(ilOut, setterType, prop.PropertyType, targetProp);
+			CreateSetNotNullValue(ilOut, setterType, storeType);
+			GenerateSet(ilOut, setProp, field);
 
 			ilOut.MarkLabel(lblEnd);
 		}
@@ -251,45 +262,45 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldsfld, _DBNullValue);
 		}
 
-		protected void CreateSetNotNullValue(ILGenerator ilOut, SetterType setterType, Type propType, MethodInfo setProp)
+		protected void CreateSetNotNullValue(ILGenerator ilOut, SetterType setterType, Type propType)
 		{
 			switch (setterType)
 			{
 				case SetterType.Enum:
-					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, null);
 					break;
 
 				case SetterType.Value:
-					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, null);
 					break;
 
 				case SetterType.ValueNI:
-					GenerateSetConverted(ilOut, propType, setProp);
+					GenerateSetConverted(ilOut, propType);
 					break;
 
 				case SetterType.Struct:
-					GenerateSetUnboxedToSubType(ilOut, propType, setProp, null);
+					GenerateSetUnboxedToSubType(ilOut, propType, null);
 					break;
 
 				case SetterType.StructNI:
-					GenerateSetConverted(ilOut, propType, setProp);
+					GenerateSetConverted(ilOut, propType);
 					break;
 
 				case SetterType.Nullable:
-					GenerateSetUnboxedToSubType(ilOut, propType, setProp, propType.GetGenericArguments()[0]);
+					GenerateSetUnboxedToSubType(ilOut, propType, propType.GetGenericArguments()[0]);
 					break;
 
 				case SetterType.NullableNI:
-					GenerateConvertedToSubType(ilOut, propType, setProp, propType.GetGenericArguments()[0]);
+					GenerateConvertedToSubType(ilOut, propType, propType.GetGenericArguments()[0]);
 					break;
 
 				case SetterType.Reference:
-					GenerateSetRef(ilOut, propType, setProp);
+					GenerateSetRef(ilOut, propType);
 					break;
-			}
+			}	
 		}
 			
-		protected void GenerateConvertedToSubType(ILGenerator ilOut, Type propType, MethodInfo setProp, Type subType)
+		protected void GenerateConvertedToSubType(ILGenerator ilOut, Type propType, Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
@@ -298,10 +309,10 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
 			ilOut.Emit(OpCodes.Unbox_Any, subType);
 			ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetUnboxedToSubType(ILGenerator ilOut, Type propType, MethodInfo setProp, Type subType)
+		protected void GenerateSetUnboxedToSubType(ILGenerator ilOut, Type propType, Type subType)
 		{
 			bool toSubType = subType != null;
 
@@ -312,18 +323,18 @@ namespace SimpleORM.PropertySetterGenerator
 			if (toSubType)
 				ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
 
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetRef(ILGenerator ilOut, Type propType, MethodInfo setProp)
+		protected void GenerateSetRef(ILGenerator ilOut, Type propType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Castclass, propType);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetConverted(ILGenerator ilOut, Type propType, MethodInfo setProp)
+		protected void GenerateSetConverted(ILGenerator ilOut, Type propType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
@@ -331,7 +342,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Call, _GetType, null);
 			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
 			ilOut.Emit(OpCodes.Unbox_Any, propType);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
 		/// <summary>

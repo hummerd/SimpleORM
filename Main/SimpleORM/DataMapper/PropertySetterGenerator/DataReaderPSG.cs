@@ -50,7 +50,16 @@ namespace SimpleORM.PropertySetterGenerator
 			if (column < 0)
 				return;
 
-			MethodInfo targetProp = prop.GetSetMethod();
+			Type storeType;
+			MethodInfo setProp = null;
+
+			if (field != null)
+				storeType = field.FieldType;
+			else
+			{
+				storeType = prop.PropertyType;
+				setProp = prop.GetSetMethod();
+			}
 
 			Label lblElse = ilOut.DefineLabel();
 			Label lblSetNull = ilOut.DefineLabel();
@@ -70,44 +79,41 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.MarkLabel(lblSetNull);
 
 			Type dbType = schemaTable.Columns[column].DataType;
-			SetterType setterType = GetSetterType(prop, dbType);
-			CreateSetNullValue(setterType, ilOut, prop.PropertyType, targetProp);
+			SetterType setterType = GetSetterType(storeType, dbType);
+			CreateSetNullValue(setterType, ilOut, storeType);
+			GenerateSet(ilOut, setProp, field);
 
 			ilOut.Emit(OpCodes.Br, lblEnd);
 			ilOut.MarkLabel(lblElse);
 
 			bool readerMethodExist = _ReaderGetMethods.ContainsKey(dbType);
-			bool useDirectSet = readerMethodExist && prop.PropertyType == dbType;
+			bool useDirectSet = readerMethodExist && storeType == dbType;
 
 			if (setterType == SetterType.Nullable && 
 				prop.PropertyType.GetGenericArguments()[0] == dbType)
 				GenerateSetDirect(
 					ilOut,
-					memberIx, 
-					targetProp,
-					field,
-					prop.PropertyType, 
+					memberIx,
+					storeType, 
 					_ReaderGetMethods[dbType], 
 					dbType);
 			else if (setterType == SetterType.NullableNI)
 				CreateSetNotNullValueFromSubType(
 					ilOut,
-					memberIx, 
-					targetProp, 
-					prop.PropertyType, 
-					prop.PropertyType.GetGenericArguments()[0]);
+					memberIx,
+					storeType,
+					storeType.GetGenericArguments()[0]);
 			else if (useDirectSet)
 				GenerateSetDirect(
 					ilOut,
-					memberIx, 
-					targetProp,
-					field,
-					prop.PropertyType, 
+					memberIx,
+					storeType, 
 					_ReaderGetMethods[dbType], 
 					null);
 			else
-				CreateSetNotNullValue(ilOut, memberIx, targetProp, prop.PropertyType);
-			
+				CreateSetNotNullValue(ilOut, memberIx, storeType);
+
+			GenerateSet(ilOut, setProp, field);
 			ilOut.MarkLabel(lblEnd);
 		}
 
@@ -177,8 +183,6 @@ namespace SimpleORM.PropertySetterGenerator
 		protected void GenerateSetDirect(
 			ILGenerator ilOut, 
 			int propIndex, 
-			MethodInfo setProp,
-			FieldInfo field,
 			Type propType, 
 			MethodInfo readerGetMethod, 
 			Type subType)
@@ -199,14 +203,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 			if (subType != null)
 				ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
-
-			if (field != null)
-				ilOut.Emit(OpCodes.Stfld, field);
-			else
-				ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void CreateSetNotNullValue(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType)
+		protected void CreateSetNotNullValue(
+			ILGenerator ilOut, 
+			int propIndex, 
+			Type storeType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
 
@@ -223,14 +225,17 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
-			ilOut.Emit(OpCodes.Ldtoken, propType);
+			ilOut.Emit(OpCodes.Ldtoken, storeType);
 			ilOut.EmitCall(OpCodes.Call, _GetType, null);
 			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
-			ilOut.Emit(OpCodes.Castclass, propType);
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			ilOut.Emit(OpCodes.Castclass, storeType);
 		}
 
-		protected void CreateSetNotNullValueFromSubType(ILGenerator ilOut, int propIndex, MethodInfo setProp, Type propType, Type subType)
+		protected void CreateSetNotNullValueFromSubType(
+			ILGenerator ilOut, 
+			int propIndex,
+			Type storeType, 
+			Type subType)
 		{
 			ilOut.Emit(OpCodes.Ldarg_1);
 
@@ -251,8 +256,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.EmitCall(OpCodes.Call, _GetType, null);
 			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
 			ilOut.Emit(OpCodes.Unbox_Any, subType);
-			ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			ilOut.Emit(OpCodes.Newobj, storeType.GetConstructor(new Type[] { subType }));
 		}
 	}
 }

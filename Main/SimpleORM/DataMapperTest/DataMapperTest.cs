@@ -105,6 +105,53 @@ namespace DataMapperTest
 		#endregion
 
 		[TestMethod]
+		public void FillObjectsReaderNestedTest()
+		{
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(@"..\..\..\DataMapper\data.mapping");
+
+			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
+
+			var reader = _DateTable.CreateDataReader();
+			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0, false);
+
+			if (objs[0].ValueProp != 72 ||
+				 objs[0].ValuePropNI != true ||
+				 objs[0].RefProp != "Hey!" ||
+				 objs[0].StructProp != _CurrentDate ||
+				 objs[0].NullableProp != _CurrentDate ||
+				 objs[0].NullablePropBool != true
+				//objs[0].TesterArrayList.Count != 2 ||
+				//objs[0].TesterList.Count != 2
+				)
+				Assert.Fail("FillObjectsTest fails.");
+
+			if (objs[1].ValueProp != 34 ||
+				 objs[1].ValuePropNI != true ||
+				 objs[1].RefProp != "Twice" ||
+				 objs[1].StructProp != DateTime.MaxValue ||
+				 objs[1].NullableProp != DateTime.MaxValue ||
+				 objs[1].NullablePropBool != true
+				//objs[1].TesterArrayList.Count != 1 ||
+				//objs[1].TesterList.Count != 1
+				)
+				Assert.Fail("FillObjectsTest fails.");
+
+			if (objs[2].ValueProp != default(int) ||
+				 objs[2].ValuePropNI != default(bool) ||
+				 objs[2].RefProp != null ||
+				 objs[2].StructProp != default(DateTime) ||
+				 objs[2].NullableProp != null ||
+				 objs[2].NullablePropBool != null
+				// objs[2].TesterArrayList.Count != 0 ||
+				// objs[2].TesterList.Count != 0
+				)
+				Assert.Fail("FillObjectsTest with DBNull fails.");
+
+			reader.Close();
+		}
+
+		[TestMethod]
 		public void FillObjectsReaderTest()
 		{
 			DataMapper.Default.ClearCache();
