@@ -429,6 +429,12 @@ namespace SimpleORM
 
                     foreach (var parent in parentList)
                     {
+						PropertyInfo pi = extractInfo.ChildTypes[i].Member as PropertyInfo;
+						IList lst = pi.GetValue(parent, null) as IList;
+						if (lst != null)
+							for (int k = 0; k < children.Count; k++)
+								lst.Add(children[k]);
+						
                         //parent.Cjildren.Add(children);
                     }
 				}

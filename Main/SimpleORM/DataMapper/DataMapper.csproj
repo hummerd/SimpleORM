@@ -77,6 +77,7 @@
     <Compile Include="PropertySetterGenerator\DataTablePSG.cs" />
     <Compile Include="PropertySetterGenerator\DataReaderPSG.cs" />
     <Compile Include="PropertySetterGenerator\KeyClassGenerator.cs" />
+    <Compile Include="PropertySetterGenerator\LinkedKeyCache.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />
     <Compile Include="PropertySetterGenerator\ReflectHelper.cs" />
     <Compile Include="StandartObjectBuilder.cs" />

@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <MappingDefinition>
 	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0" tableIx="0">
-    <RefKey key="Primary1">
+    <RefKey key="Relation1">
       <Column name="ParentId"/>
     </RefKey>
-    <RefKey ref="Primary1" >
+    <RefKey ref="Relation1" >
       <Column name="ParentId"/>
     </RefKey>
 		<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>
@@ -12,8 +12,8 @@
 		<PropetyMapping propertyName="RefProp"  dataColumnName="Field2"/>
 		<PropetyMapping propertyName="StructProp" dataColumnName="Field3"/>
 		<PropetyMapping propertyName="NullableProp" dataColumnName="Field3"/>
-		<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1"/>
-		<PropetyMapping propertyName="TesterList" dataRelationName="Relation1"  />
+		<PropetyMapping propertyName="NullablePropBool" dataColumnName="Field1" />
+		<PropetyMapping propertyName="TesterList" dataRelationName="Relation1" />
 		<PropetyMapping propertyName="TesterArrayList" dataRelationName="Relation1" nestedItemType="DataMapperTest, DataMapperTest.TesterAll" />
 		<PropetyMapping propertyName="CmplProp" complex="" />
 	</TypeMapping>

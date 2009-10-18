@@ -15,6 +15,8 @@ namespace SimpleORM.PropertySetterGenerator
 	public class DataMapperCodeGenerator
 	{
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
+		protected readonly LinkedKeyCache _LinkedKeyCache = new LinkedKeyCache();
+
 					
 		protected ModuleBuilder		_ModuleBuilder;
 		protected AssemblyBuilder	_AsmBuilder;
@@ -344,9 +346,40 @@ namespace SimpleORM.PropertySetterGenerator
 				GetForeignKeys(targetClassType, schemeId)
 				);
 
+			FindLinkedKeys(result, _LinkedKeyCache);
 			return result;
 		}
 
+		protected void FindLinkedKeys(ExtractInfo info, LinkedKeyCache result)
+		{
+			if (info.PrimaryKeyInfo != null)
+			{
+				List<KeyInfo> linkedKeys = new List<KeyInfo>();
+				result.Add(linkedKeys);
+
+				linkedKeys.Add(info.PrimaryKeyInfo);
+				string relationName = info.PrimaryKeyInfo.Name;
+
+				for (int i = 0; i < info.ChildTypes.Count; i++)
+				{
+					if (info.ChildTypes[i].MapName == relationName)
+					{
+						KeyInfo lk = info.ChildTypes[i].ExtractInfo.ForeignKeysInfo.Find(
+							fki => fki.Name == relationName);
+
+						if (lk != null && !linkedKeys.Contains(lk))
+							linkedKeys.Add(lk);
+					}
+				}
+			}
+
+			for (int j = 0; j < info.ChildTypes.Count; j++)
+			{
+				if (info.ChildTypes[j].ExtractInfo != info)
+					FindLinkedKeys(info.ChildTypes[j].ExtractInfo, result);
+			}
+		}
+		
 		/// <summary>
 		/// Generates setter method using xml config or type meta info.
 		/// </summary>
@@ -556,27 +589,37 @@ namespace SimpleORM.PropertySetterGenerator
 			return result;
         }
 
-		protected KeyInfo GenerateKey(KeyInfo pk, bool primary, Type targetType, int schemeId, DataTable dtSource, Type generatorSourceType)
+		protected KeyInfo GenerateKey(KeyInfo keyInfo, bool primary, Type targetType, int schemeId, DataTable dtSource, Type generatorSourceType)
 		{
-			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
-			string key = pk.Name + (primary ? "_pk_" : "_fk_") + targetType;
+			if (keyInfo.KeyType != null)
+				return keyInfo;
 
-			pk.KeyType = _KeyGenerator.GenerateKeyType(
+			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
+			string key = keyInfo.Name + (primary ? "_pk_" : "_fk_") + targetType;
+
+			Type keyType = _KeyGenerator.GenerateKeyType(
 				key,
 				dtSource,
-				pk.Columns,
+				keyInfo.Columns,
 				methodGenerator,
 				schemeId
 				);
 
-			pk.FillMethod = CreateExtractInfoWithMethod(
-				pk.KeyType,
+			MethodInfo keyFillMethod = CreateExtractInfoWithMethod(
+				keyType,
 				schemeId,
 				dtSource,
 				generatorSourceType
 				).FillMethod[generatorSourceType];
 
-			return pk;
+			List<KeyInfo> keys = _LinkedKeyCache.FindLinkedKeys(keyInfo);
+			for (int i = 0; i < keys.Count; i++)
+			{
+				keys[i].KeyType = keyType;
+				keys[i].FillMethod = keyFillMethod;
+			}
+
+			return keyInfo;
 		}
 
 		/// <summary>
