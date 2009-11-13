@@ -17,7 +17,7 @@ namespace SimpleORM.PropertySetterGenerator
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
 		protected readonly LinkedKeyCache _LinkedKeyCache = new LinkedKeyCache();
 
-					
+		protected string			_GeneratedFileName;
 		protected ModuleBuilder		_ModuleBuilder;
 		protected AssemblyBuilder	_AsmBuilder;
 		protected Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
@@ -40,6 +40,30 @@ namespace SimpleORM.PropertySetterGenerator
 			}
 		}
 
+
+		public string GeneratedFileName
+		{
+			get
+			{
+				return _GeneratedFileName;
+			}
+			set
+			{
+				if (_ModuleBuilder != null)
+					throw new InvalidOperationException("Can not set GeneratedFileName after dynamic module creation");
+
+				_GeneratedFileName = value;
+			}
+		}
+
+
+		public void SaveGeneratedAsm()
+		{
+			if (String.IsNullOrEmpty(_GeneratedFileName))
+				throw new InvalidOperationException("To save generated file you must set GeneratedFileName before first call to FillObject");
+
+			_AsmBuilder.Save(_GeneratedFileName);
+		}
 
 		/// <summary>
 		/// Sets mapping definitions
@@ -631,9 +655,17 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			if (_ModuleBuilder == null)
 			{
+				bool useFile = !String.IsNullOrEmpty(_GeneratedFileName);
+				AssemblyName asmName = new AssemblyName("DataPropertySetterAsm");
+
 				_AsmBuilder = Thread.GetDomain().DefineDynamicAssembly(
-					new AssemblyName("DataPropertySetterAsm"), AssemblyBuilderAccess.Run);
-				_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod");
+					asmName, useFile ? AssemblyBuilderAccess.RunAndSave : AssemblyBuilderAccess.Run);
+
+				if (useFile)
+					_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod", _GeneratedFileName);
+				else
+					_ModuleBuilder = _AsmBuilder.DefineDynamicModule("DataPropertySetterMod");
+	
 				_KeyGenerator = new KeyClassGenerator(_ModuleBuilder);
 			}
 

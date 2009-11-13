@@ -214,6 +214,15 @@ namespace DataMapperTest
 			set { _NullablePropBool = value; }
 		}
 
+		//string form int
+		private string _StrProp;
+		[DataColumnMapAttribute("Field1")]
+		public string StrProp
+		{
+			get { return _StrProp; }
+			set { _StrProp = value; }
+		}
+
 		private TesterAllList _TesterList;
 		[DataRelationMap("Relation1")]
 		public TesterAllList TesterList

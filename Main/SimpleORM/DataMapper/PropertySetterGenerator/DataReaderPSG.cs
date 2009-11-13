@@ -73,7 +73,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_1);
 			ilOut.Emit(OpCodes.Ldloc_1);
-			ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
+			ilOut.Emit(OpCodes.Call, _IsDBNull);
 			ilOut.Emit(OpCodes.Brfalse, lblElse);
 
 			ilOut.MarkLabel(lblSetNull);
@@ -169,15 +169,15 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
 			ilOut.Emit(OpCodes.Ldind_I4);
-			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Call, _GetSubListItem);
 			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			ilOut.Emit(OpCodes.Call, _GetListItem);
 
 			ilOut.Emit(OpCodes.Stloc_1);
 			ilOut.Emit(OpCodes.Ldloc_1);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 
-			//ilOut.EmitCall(OpCodes.Call, _IsDBNull, null);
+			//ilOut.Emit(OpCodes.Call, _IsDBNull, null);
 		}
 
 		protected void GenerateSetDirect(
@@ -193,13 +193,13 @@ namespace SimpleORM.PropertySetterGenerator
 			////ilOut.Emit(OpCodes.Ldarg_3);
 			////ilOut.Emit(OpCodes.Ldarg, 4);
 			////ilOut.Emit(OpCodes.Ldind_I4);
-			////ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			////ilOut.Emit(OpCodes.Call, _GetSubListItem, null);
 			////ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			////ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			////ilOut.Emit(OpCodes.Call, _GetListItem, null);
 			ilOut.Emit(OpCodes.Ldloc_1);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 
-			ilOut.EmitCall(OpCodes.Callvirt, readerGetMethod, null);
+			ilOut.Emit(OpCodes.Callvirt, readerGetMethod);
 
 			if (subType != null)
 				ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
@@ -215,20 +215,21 @@ namespace SimpleORM.PropertySetterGenerator
 			//ilOut.Emit(OpCodes.Ldarg_3);
 			//ilOut.Emit(OpCodes.Ldarg, 4);
 			//ilOut.Emit(OpCodes.Ldind_I4);
-			//ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			//ilOut.Emit(OpCodes.Call, _GetSubListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			//ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Call, _GetListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 			ilOut.Emit(OpCodes.Ldloc_1);
-			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
+			ilOut.Emit(OpCodes.Callvirt, _GetValue);
 			ilOut.Emit(OpCodes.Stloc_0);
 
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldtoken, storeType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
-			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
-			ilOut.Emit(OpCodes.Castclass, storeType);
+			ilOut.Emit(OpCodes.Call, _GetType);
+			ilOut.Emit(OpCodes.Call, _ChangeType);
+			ilOut.Emit(OpCodes.Unbox_Any, storeType);
+			//ilOut.Emit(OpCodes.Castclass, storeType);
 		}
 
 		protected void CreateSetNotNullValueFromSubType(
@@ -242,19 +243,19 @@ namespace SimpleORM.PropertySetterGenerator
 			//ilOut.Emit(OpCodes.Ldarg_3);
 			//ilOut.Emit(OpCodes.Ldarg, 4);
 			//ilOut.Emit(OpCodes.Ldind_I4);
-			//ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			//ilOut.Emit(OpCodes.Call, _GetSubListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			//ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			//ilOut.Emit(OpCodes.Call, _GetListItem, null);
 			//ilOut.Emit(OpCodes.Ldc_I4, column);
 			ilOut.Emit(OpCodes.Ldloc_1);
-			ilOut.EmitCall(OpCodes.Callvirt, _GetValue, null);
+			ilOut.Emit(OpCodes.Callvirt, _GetValue);
 			ilOut.Emit(OpCodes.Stloc_0);
 
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldtoken, subType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
-			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
+			ilOut.Emit(OpCodes.Call, _GetType);
+			ilOut.Emit(OpCodes.Call, _ChangeType);
 			ilOut.Emit(OpCodes.Unbox_Any, subType);
 			ilOut.Emit(OpCodes.Newobj, storeType.GetConstructor(new Type[] { subType }));
 		}

@@ -81,21 +81,21 @@ namespace SimpleORM.PropertySetterGenerator
 			Label lblAfterIf = ilOut.DefineLabel();
 
 			ilOut.Emit(OpCodes.Ldarg_0);
-			ilOut.EmitCall(OpCodes.Callvirt, prop.GetGetMethod(), null);
+			ilOut.Emit(OpCodes.Callvirt, prop.GetGetMethod());
 			ilOut.Emit(OpCodes.Stloc, locPropValue);
 			ilOut.Emit(OpCodes.Ldloc, locPropValue);
 			ilOut.Emit(OpCodes.Brtrue, lblAfterIf);
 
 			ilOut.Emit(OpCodes.Ldarg_2);
-			ilOut.EmitCall(OpCodes.Callvirt, _GetObjectBuilder, null); //get_ObjectBuilder
+			ilOut.Emit(OpCodes.Callvirt, _GetObjectBuilder); //get_ObjectBuilder
 			ilOut.Emit(OpCodes.Ldtoken, subType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
-			ilOut.EmitCall(OpCodes.Callvirt, _CreateObject, null); //CreateObject
+			ilOut.Emit(OpCodes.Call, _GetType);
+			ilOut.Emit(OpCodes.Callvirt, _CreateObject); //CreateObject
 			ilOut.Emit(OpCodes.Castclass, subType);
 			ilOut.Emit(OpCodes.Stloc, locPropValue);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc, locPropValue);
-			ilOut.EmitCall(OpCodes.Callvirt, prop.GetSetMethod(), null);
+			ilOut.Emit(OpCodes.Callvirt, prop.GetSetMethod());
 
 			ilOut.MarkLabel(lblAfterIf);
 
@@ -121,7 +121,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
 
-			ilOut.EmitCall(OpCodes.Call, subExtract, null); // extract
+			ilOut.Emit(OpCodes.Call, subExtract); // extract
 		}
 
 
@@ -149,6 +149,8 @@ namespace SimpleORM.PropertySetterGenerator
 				else
 					return SetterType.StructNI;
 			}
+			else if (!storeType.IsValueType && columnType != storeType)
+				return SetterType.ValueNI;
 			else
 				return SetterType.Reference;
 		}
@@ -218,7 +220,7 @@ namespace SimpleORM.PropertySetterGenerator
 			if (field != null)
 				ilOut.Emit(OpCodes.Stfld, field);
 			else
-				ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+				ilOut.Emit(OpCodes.Callvirt, setProp);
 		}
 	}
 }

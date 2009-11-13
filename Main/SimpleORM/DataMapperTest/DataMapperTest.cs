@@ -74,6 +74,7 @@ namespace DataMapperTest
 			_DateTable.Rows.Add(72, "Hey!", _CurrentDate = DateTime.Now, 1, 1);
 			_DateTable.Rows.Add(34, "Twice", DateTime.MaxValue, 2, 2);
 			_DateTable.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value, DBNull.Value);
+			_DateTable.Rows.Add(0, "Twice", DateTime.MaxValue, 0, 0);
 
 			dsTest.Tables.Add(_DateTable);
 
@@ -210,11 +211,12 @@ namespace DataMapperTest
 			DataMapper.Default.FillObject(reader, result);
 
 			if (result.ValueProp != 72 ||
-				 result.ValuePropNI != true ||
-				 result.RefProp != "Hey!" ||
-				 result.StructProp != _CurrentDate ||
-				 result.NullableProp != _CurrentDate ||
-				 result.NullablePropBool != true
+				result.ValuePropNI != true ||
+				result.RefProp != "Hey!" ||
+				result.StructProp != _CurrentDate ||
+				result.NullableProp != _CurrentDate ||
+				result.NullablePropBool != true ||
+				result.StrProp != "72"
 				//result.TesterArrayList.Count != 2 ||
 				//result.TesterList.Count != 2
 				)
@@ -227,7 +229,36 @@ namespace DataMapperTest
 				 result.RefProp != "Twice" ||
 				 result.StructProp != DateTime.MaxValue ||
 				 result.NullableProp != DateTime.MaxValue ||
-				 result.NullablePropBool != true
+				 result.NullablePropBool != true ||
+				 result.StrProp != "34"
+				//result.TesterArrayList.Count != 1 ||
+				//result.TesterList.Count != 1
+				)
+				Assert.Fail("FillObjectsTest fails.");
+
+			reader.Read();
+			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
+			if (result.ValueProp != default(int) ||
+				 result.ValuePropNI != default(bool) ||
+				 result.RefProp != null ||
+				 result.StructProp != default(DateTime) ||
+				 result.NullableProp != null ||
+				 result.NullablePropBool != null ||
+				 result.StrProp != null
+				//result.TesterArrayList.Count != 1 ||
+				//result.TesterList.Count != 1
+				)
+				Assert.Fail("FillObjectsTest fails.");
+
+			reader.Read();
+			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
+			if (result.ValueProp != 0 ||
+				 result.ValuePropNI != false ||
+				 result.RefProp != "Twice" ||
+				 result.StructProp != DateTime.MaxValue ||
+				 result.NullableProp != DateTime.MaxValue ||
+				 result.NullablePropBool != false ||
+				 result.StrProp != "0"
 				//result.TesterArrayList.Count != 1 ||
 				//result.TesterList.Count != 1
 				)
@@ -545,8 +576,9 @@ namespace DataMapperTest
 			TesterAll tester = new TesterAll();
 			DataMapper.Default.ClearCache();
 			DataMapper.Default.SetConfig(null);
-			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
+
+			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 			if (tester.ValueProp != 72 ||
 				 tester.ValuePropNI != true ||
 				 tester.RefProp != "Hey!" ||
@@ -555,12 +587,13 @@ namespace DataMapperTest
 				 tester.NullablePropBool != true ||
 				 tester.TesterArrayList.Count != 2 ||
 				 tester.TesterList.Count != 2 ||
-				 tester.CmplProp.StructProp != _CurrentDate
+				 tester.CmplProp.StructProp != _CurrentDate ||
+				 tester.StrProp != "72"
 				)
 				Assert.Fail("FillObjectTest fails.");
 
-			DataMapper.Default.FillObject(_DateTable.Rows[2], tester, 0);
 
+			DataMapper.Default.FillObject(_DateTable.Rows[2], tester, 0);
 			if (tester.ValueProp != default(int) ||
 				 tester.ValuePropNI != default(bool) ||
 				 tester.RefProp != null ||
@@ -569,9 +602,24 @@ namespace DataMapperTest
 				 tester.NullablePropBool != null ||
 				 tester.TesterArrayList.Count != 2 ||
 				 tester.TesterList.Count != 2 ||
-				 tester.CmplProp.StructProp != default(DateTime)
+				 tester.CmplProp.StructProp != default(DateTime) ||
+				 tester.StrProp != null
 				)
 				Assert.Fail("FillObjectTest with DBNull fails.");
+
+
+			DataMapper.Default.FillObject(_DateTable.Rows[3], tester, 0);
+			if (tester.ValueProp != 0 ||
+				 tester.ValuePropNI != false ||
+				 tester.RefProp != "Twice" ||
+				 tester.StructProp != DateTime.MaxValue ||
+				 tester.NullableProp != DateTime.MaxValue ||
+				 tester.NullablePropBool != false ||
+				 tester.StrProp != "0"
+				//result.TesterArrayList.Count != 1 ||
+				//result.TesterList.Count != 1
+				)
+				Assert.Fail("FillObjectsTest fails.");
 		}
 
 		[TestMethod]

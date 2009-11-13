@@ -62,6 +62,24 @@ namespace SimpleORM
 			set { _ObjectBuilder = value; }
 		}
 
+		
+		public string GeneratedFileName
+		{
+			get
+			{
+				return _DMCodeGenerator.GeneratedFileName;
+			}
+			set
+			{
+				_DMCodeGenerator.GeneratedFileName = value;
+			}
+		}
+
+
+		public void SaveGeneratedAsm()
+		{
+			_DMCodeGenerator.SaveGeneratedAsm();
+		}
 
 		public void SetConfig(string configFile)
 		{

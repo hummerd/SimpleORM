@@ -170,30 +170,30 @@ namespace SimpleORM.PropertySetterGenerator
 			LocalBuilder loc = ilOut.DeclareLocal(propType);
 
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0013: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 
 			ilOut.Emit(OpCodes.Brtrue, lblElse2);					//L_0019: brtrue.s L_0039
 			ilOut.Emit(OpCodes.Ldtoken, propType);					//L_001b: ldtoken [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-			ilOut.EmitCall(OpCodes.Call, createInst, null);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
+			ilOut.Emit(OpCodes.Call, _GetType);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+			ilOut.Emit(OpCodes.Call, createInst);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
 			ilOut.Emit(OpCodes.Castclass, propType);				//L_002a: castclass [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
 			ilOut.Emit(OpCodes.Stloc, loc);							//L_002f: stloc.1 
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0030: ldarg.0 
 			ilOut.Emit(OpCodes.Ldloc, loc);							//L_0031: ldloc.1 
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
+			ilOut.Emit(OpCodes.Callvirt, setProp);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
 
 			ilOut.Emit(OpCodes.Br, lblAfterFirstIf);				//L_0037: br.s L_0040
 
 			ilOut.MarkLabel(lblElse2);
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0039: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 			ilOut.Emit(OpCodes.Stloc, loc);							//L_003f: stloc.1 
 
 			ilOut.MarkLabel(lblAfterFirstIf);
 
 			ilOut.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
 			ilOut.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
-			ilOut.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
+			ilOut.Emit(OpCodes.Call, _GetChildRows);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
 			ilOut.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
 			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
 			ilOut.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
@@ -207,12 +207,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_2);
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0053: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 			ilOut.Emit(OpCodes.Ldtoken, relationType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
+			ilOut.Emit(OpCodes.Call, _GetType);
 			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_0059: ldloc.0 
 			ilOut.Emit(OpCodes.Ldc_I4, relationSchemeId);		//L_005a: ldc.i4 0xea
-			ilOut.EmitCall(OpCodes.Callvirt, _SetNested, null);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
+			ilOut.Emit(OpCodes.Callvirt, _SetNested);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
 			ilOut.MarkLabel(lblEnd);									//L_0064: ret 
 		}
 
@@ -236,9 +236,9 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
 			ilOut.Emit(OpCodes.Ldind_I4);
-			ilOut.EmitCall(OpCodes.Call, _GetSubListItem, null);
+			ilOut.Emit(OpCodes.Call, _GetSubListItem);
 			ilOut.Emit(OpCodes.Ldc_I4, propIndex);
-			ilOut.EmitCall(OpCodes.Call, _GetListItem, null);
+			ilOut.Emit(OpCodes.Call, _GetListItem);
 
 			ilOut.Emit(OpCodes.Stloc_1);
 			ilOut.Emit(OpCodes.Ldloc_1);
@@ -253,7 +253,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_1);
 			ilOut.Emit(OpCodes.Ldloc_1);
-			ilOut.EmitCall(OpCodes.Call, _GetRowItem, null);
+			ilOut.Emit(OpCodes.Call, _GetRowItem);
 			ilOut.Emit(OpCodes.Stloc_0);
 
 			ilOut.MarkLabel(lblAfterGetRowItem);
@@ -305,11 +305,11 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldtoken, subType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
-			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
+			ilOut.Emit(OpCodes.Call, _GetType);
+			ilOut.Emit(OpCodes.Call, _ChangeType);
 			ilOut.Emit(OpCodes.Unbox_Any, subType);
 			ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
-			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 
 		protected void GenerateSetUnboxedToSubType(ILGenerator ilOut, Type propType, Type subType)
@@ -323,7 +323,7 @@ namespace SimpleORM.PropertySetterGenerator
 			if (toSubType)
 				ilOut.Emit(OpCodes.Newobj, propType.GetConstructor(new Type[] { subType }));
 
-			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 
 		protected void GenerateSetRef(ILGenerator ilOut, Type propType)
@@ -331,7 +331,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Castclass, propType);
-			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 
 		protected void GenerateSetConverted(ILGenerator ilOut, Type propType)
@@ -339,10 +339,10 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldtoken, propType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
-			ilOut.EmitCall(OpCodes.Call, _ChangeType, null);
+			ilOut.Emit(OpCodes.Call, _GetType);
+			ilOut.Emit(OpCodes.Call, _ChangeType);
 			ilOut.Emit(OpCodes.Unbox_Any, propType);
-			//ilOut.EmitCall(OpCodes.Callvirt, setProp, null);
+			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 
 		/// <summary>
@@ -454,30 +454,30 @@ namespace SimpleORM.PropertySetterGenerator
 			LocalBuilder loc = ilOut.DeclareLocal(propType);
 
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0013: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_0014: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 
 			ilOut.Emit(OpCodes.Brtrue, lblElse2);					//L_0019: brtrue.s L_0039
 			ilOut.Emit(OpCodes.Ldtoken, propType);					//L_001b: ldtoken [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-			ilOut.EmitCall(OpCodes.Call, createInst, null);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
+			ilOut.Emit(OpCodes.Call, _GetType);			//L_0020: call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+			ilOut.Emit(OpCodes.Call, createInst);		//L_0025: call object [mscorlib]System.Activator::CreateInstance(class [mscorlib]System.Type)
 			ilOut.Emit(OpCodes.Castclass, propType);				//L_002a: castclass [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>
 			ilOut.Emit(OpCodes.Stloc, loc);							//L_002f: stloc.1 
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0030: ldarg.0 
 			ilOut.Emit(OpCodes.Ldloc, loc);							//L_0031: ldloc.1 
-			ilOut.EmitCall(OpCodes.Callvirt, setProp, null);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
+			ilOut.Emit(OpCodes.Callvirt, setProp);	//L_0032: callvirt instance void CodeGenerator.MyTest::set_NestedList(class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest>)
 
 			ilOut.Emit(OpCodes.Br, lblAfterFirstIf);				//L_0037: br.s L_0040
 
 			ilOut.MarkLabel(lblElse2);
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0039: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_003a: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 			ilOut.Emit(OpCodes.Stloc, loc);							//L_003f: stloc.1 
 
 			ilOut.MarkLabel(lblAfterFirstIf);
 
 			ilOut.Emit(OpCodes.Ldarg_1);								//L_0000: ldarg.1 
 			ilOut.Emit(OpCodes.Ldstr, relationName);				//L_0001: ldstr "RelationName"
-			ilOut.EmitCall(OpCodes.Call, _GetChildRows, null);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
+			ilOut.Emit(OpCodes.Call, _GetChildRows);	//L_0006: callvirt instance class [System.Data]System.Data.DataRow[] [System.Data]System.Data.DataRow::GetChildRows(string)
 			ilOut.Emit(OpCodes.Stloc, locRows);						//L_000b: stloc.0 
 			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_000c: ldloc.0 
 			ilOut.Emit(OpCodes.Ldlen);									//L_000d: ldlen 
@@ -491,12 +491,12 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Ldarg_2);
 			ilOut.Emit(OpCodes.Ldarg_0);								//L_0053: ldarg.0 
-			ilOut.EmitCall(OpCodes.Callvirt, getProp, null);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
+			ilOut.Emit(OpCodes.Callvirt, getProp);	//L_0054: callvirt instance class [mscorlib]System.Collections.Generic.List`1<class CodeGenerator.MyTest> CodeGenerator.MyTest::get_NestedList()
 			ilOut.Emit(OpCodes.Ldtoken, itemType);
-			ilOut.EmitCall(OpCodes.Call, _GetType, null);
+			ilOut.Emit(OpCodes.Call, _GetType);
 			ilOut.Emit(OpCodes.Ldloc, locRows);						//L_0059: ldloc.0 
 			ilOut.Emit(OpCodes.Ldc_I4, nestedSchemaId);			//L_005a: ldc.i4 0xea
-			ilOut.EmitCall(OpCodes.Callvirt, _SetNested, null);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
+			ilOut.Emit(OpCodes.Callvirt, _SetNested);	//L_005f: call void CodeGenerator.Program::ExtractNested(class [mscorlib]System.Collections.IList, class [mscorlib]System.Collections.Generic.IEnumerable`1<class [System.Data]System.Data.DataRow>, int32)
 			ilOut.MarkLabel(lblEnd);									//L_0064: ret 
 		}
 	}
