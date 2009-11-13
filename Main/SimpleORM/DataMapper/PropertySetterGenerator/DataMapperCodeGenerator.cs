@@ -8,6 +8,7 @@ using System.Threading;
 using System.Xml;
 using SimpleORM.Attributes;
 using SimpleORM.Exception;
+using System.Diagnostics;
 
 
 namespace SimpleORM.PropertySetterGenerator
@@ -413,6 +414,9 @@ namespace SimpleORM.PropertySetterGenerator
 		/// <returns></returns>
 		public ExtractInfo GenerateSetterMethod(ExtractInfo extractInfo, DataTable dtSource, Type generatorSourceType)
 		{
+			Debug.WriteLine(String.Empty);
+			Debug.WriteLine("Generating method for " + extractInfo.TargetType + ", scheme: " + extractInfo.SchemeId + ", source type: " + generatorSourceType);
+
 			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
 
 			// First process complex types
@@ -436,6 +440,8 @@ namespace SimpleORM.PropertySetterGenerator
 			int propIx = 0;
 			foreach (MemberExtractInfo mei in extractInfo.MemberColumns)
 			{
+				Debug.WriteLine("\t" + mei.Member.Name.ToString().PadRight(20) + " mapped to: " + mei.MapName);
+
 				methodGenerator.CreateExtractScalar(
 					ilGen,
 					mei.Member as PropertyInfo,
