@@ -274,50 +274,80 @@ namespace SimpleORM
 				}
 			} while (reader.Read());
 		}
-		
+
+		public TObject FillObject<TObject>(IDataReader reader, IDbConnection conn, TObject obj)
+			where TObject : class
+		{
+			return FillObject(reader, conn, typeof(TObject), obj, 0, true, true) as TObject;
+		}
+
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj)
 			where TObject : class
 		{
-			return FillObject(reader, typeof(TObject), obj, 0) as TObject;
+			return FillObject(reader, null, typeof(TObject), obj, 0, false, false) as TObject;
 		}
 
 		public TObject FillObject<TObject>(IDataReader reader, TObject obj, int schemeId)
 			where TObject : class
 		{
-			return FillObject(reader, typeof(TObject), obj, schemeId) as TObject;
+			return FillObject(reader, null, typeof(TObject), obj, schemeId, false, false) as TObject;
 		}
 
-		public object FillObject(IDataReader reader, Type objectType, object obj, int schemeId)
+		public object FillObject(IDataReader reader, IDbConnection conn, Type objectType, object obj, int schemeId, bool read, bool close)
 		{
-			if (reader == null)
-				throw new ArgumentNullException("reader", "Cannot fill object from null.");
+			try
+			{
+				if (reader == null)
+					throw new ArgumentNullException("reader", "Cannot fill object from null.");
 
-			if (objectType == null && obj == null)
-				throw new ArgumentNullException("objectType", "Cannot fill object of unknown type null.");
+				if (objectType == null && obj == null)
+					throw new ArgumentNullException("objectType", "Cannot fill object of unknown type null.");
 
-			if (objectType == null)
-				objectType = obj.GetType();
+				if (objectType == null)
+					objectType = obj.GetType();
 
-			DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfoWithMethod(
-				objectType,
-				schemeId,
-				schemeTable,
-				DataReaderPSG.TypeOfDataSource
-				);
+				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+				ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfoWithMethod(
+					objectType,
+					schemeId,
+					schemeTable,
+					DataReaderPSG.TypeOfDataSource
+					);
 
-			if (extractInfo == null)
-				throw new DataMapperException("Can not fill object without mapping definition.");
+				if (extractInfo == null)
+					throw new DataMapperException("Can not fill object without mapping definition.");
 
-			//If there is no instance create it
-			if (obj == null)
-				obj = _ObjectBuilder.CreateObject(objectType);
+				//If there is no instance create it
+				if (obj == null)
+					obj = _ObjectBuilder.CreateObject(objectType);
 
-			List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+				List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
 
-			//Fill object
-			CallExtractorMethod(extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource], obj, reader, columnIndexes);
-			return obj;
+				bool hasData = true;
+				if (read)
+					hasData = reader.Read();
+
+				//Fill object
+				if (hasData)
+					CallExtractorMethod(
+						extractInfo.FillMethod[DataReaderPSG.TypeOfDataSource], 
+						obj, 
+						reader, 
+						columnIndexes);
+
+				return obj;
+			}
+			finally
+			{
+				if (close)
+				{
+					if (reader != null)
+						reader.Close();
+
+					if (conn != null)
+						conn.Close();
+				}
+			}
 		}
 
 

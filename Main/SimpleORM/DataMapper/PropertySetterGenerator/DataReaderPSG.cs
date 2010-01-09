@@ -42,14 +42,9 @@ namespace SimpleORM.PropertySetterGenerator
 			ILGenerator ilOut,
 			PropertyInfo prop,
 			FieldInfo field,
-			string dbColumnName,
-			DataTable schemaTable,
+			Type sourceDataType,
 			int memberIx)
 		{
-			int column = schemaTable.Columns.IndexOf(dbColumnName);
-			if (column < 0)
-				return;
-
 			Type storeType;
 			MethodInfo setProp = null;
 
@@ -78,25 +73,24 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.MarkLabel(lblSetNull);
 
-			Type dbType = schemaTable.Columns[column].DataType;
-			SetterType setterType = GetSetterType(storeType, dbType);
+			SetterType setterType = GetSetterType(storeType, sourceDataType);
 			CreateSetNullValue(setterType, ilOut, storeType);
 			GenerateSet(ilOut, setProp, field);
 
 			ilOut.Emit(OpCodes.Br, lblEnd);
 			ilOut.MarkLabel(lblElse);
 
-			bool readerMethodExist = _ReaderGetMethods.ContainsKey(dbType);
-			bool useDirectSet = readerMethodExist && storeType == dbType;
+			bool readerMethodExist = _ReaderGetMethods.ContainsKey(sourceDataType);
+			bool useDirectSet = readerMethodExist && storeType == sourceDataType;
 
-			if (setterType == SetterType.Nullable && 
-				prop.PropertyType.GetGenericArguments()[0] == dbType)
+			if (setterType == SetterType.Nullable &&
+				prop.PropertyType.GetGenericArguments()[0] == sourceDataType)
 				GenerateSetDirect(
 					ilOut,
 					memberIx,
-					storeType, 
-					_ReaderGetMethods[dbType], 
-					dbType);
+					storeType,
+					_ReaderGetMethods[sourceDataType],
+					sourceDataType);
 			else if (setterType == SetterType.NullableNI)
 				CreateSetNotNullValueFromSubType(
 					ilOut,
@@ -107,8 +101,8 @@ namespace SimpleORM.PropertySetterGenerator
 				GenerateSetDirect(
 					ilOut,
 					memberIx,
-					storeType, 
-					_ReaderGetMethods[dbType], 
+					storeType,
+					_ReaderGetMethods[sourceDataType], 
 					null);
 			else
 				CreateSetNotNullValue(ilOut, memberIx, storeType);

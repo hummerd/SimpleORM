@@ -30,14 +30,9 @@ namespace SimpleORM.PropertySetterGenerator
 			ILGenerator ilOut,
 			PropertyInfo prop,
 			FieldInfo field,
-			string dbColumnName,
-			DataTable schemaTable,
+			Type sourceDataType,
 			int propIndex)
 		{
-			int column = schemaTable.Columns.IndexOf(dbColumnName);
-			if (column < 0)
-				return;
-
 			Type storeType;
 			MethodInfo setProp = null;
 
@@ -56,7 +51,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			ilOut.Emit(OpCodes.Bne_Un, lblElse);
 
-			SetterType setterType = GetSetterType(storeType, schemaTable.Columns[column].DataType);
+			SetterType setterType = GetSetterType(storeType, sourceDataType);
 			CreateSetNullValue(setterType, ilOut, storeType);
 			GenerateSet(ilOut, setProp, field);
 

@@ -7,6 +7,10 @@ using SimpleORM.Attributes;
 
 namespace SimpleORM
 {
+	/// <summary>
+	/// Class that represents information about mapping TargetType with SchemeId.
+	/// Also class contains references to generated fill methods (FillMethod dictionary).
+	/// </summary>
 	public class ExtractInfo
 	{
 		protected Type									_TargetType;
@@ -166,6 +170,16 @@ namespace SimpleORM
 			}
 
 			return result;
+		}
+
+
+		public override string ToString()
+		{
+			return String.Format(
+				"ExtractInfo for {0}, scheme {1}",
+				TargetType,
+				SchemeId
+				);
 		}
 	}
 

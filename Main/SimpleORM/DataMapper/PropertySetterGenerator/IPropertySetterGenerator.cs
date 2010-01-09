@@ -27,8 +27,7 @@ namespace SimpleORM
 			ILGenerator ilOut,
 			PropertyInfo prop,
 			FieldInfo field,
-			string dbColumnName,
-			DataTable schemaTable,
+			Type sourceDataType,
 			int memberIx);
 
 		void CreateExtractNested(
