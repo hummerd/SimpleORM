@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using SimpleORM.Attributes;
+using System.Data;
 
 
 namespace DataMapperTest
@@ -261,5 +262,81 @@ namespace DataMapperTest
 	public class TesterAllBindingCollection : BindingList<TesterAll>
 	{
 
+	}
+
+	public class DBConnMock : IDbConnection
+	{
+		protected ConnectionState _State = ConnectionState.Open;
+
+
+		#region IDbConnection Members
+
+		public IDbTransaction BeginTransaction(IsolationLevel il)
+		{
+			throw new NotImplementedException();
+		}
+
+		public IDbTransaction BeginTransaction()
+		{
+			throw new NotImplementedException();
+		}
+
+		public void ChangeDatabase(string databaseName)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void Close()
+		{
+			_State = ConnectionState.Closed;
+		}
+
+		public string ConnectionString
+		{
+			get
+			{
+				throw new NotImplementedException();
+			}
+			set
+			{
+				throw new NotImplementedException();
+			}
+		}
+
+		public int ConnectionTimeout
+		{
+			get { throw new NotImplementedException(); }
+		}
+
+		public IDbCommand CreateCommand()
+		{
+			throw new NotImplementedException();
+		}
+
+		public string Database
+		{
+			get { throw new NotImplementedException(); }
+		}
+
+		public void Open()
+		{
+			throw new NotImplementedException();
+		}
+
+		public ConnectionState State
+		{
+			get { return _State; }
+		}
+
+		#endregion
+
+		#region IDisposable Members
+
+		public void Dispose()
+		{
+			throw new NotImplementedException();
+		}
+
+		#endregion
 	}
 }

@@ -114,7 +114,7 @@ namespace DataMapperTest
 			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
 
 			var reader = _DateTable.CreateDataReader();
-			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0, false);
+			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0);
 
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||
@@ -150,6 +150,11 @@ namespace DataMapperTest
 				Assert.Fail("FillObjectsTest with DBNull fails.");
 
 			reader.Close();
+
+			reader = _DateTable.CreateDataReader();
+			objs.Clear();
+			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0);
+			reader.Close();
 		}
 
 		[TestMethod]
@@ -161,7 +166,11 @@ namespace DataMapperTest
 			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
 			
 			var reader = _DateTable.CreateDataReader();
-			DataMapper.Default.FillObjectList<TesterAll>(objs, reader);
+			var conn = new DBConnMock();
+			DataMapper.Default.FillObjectList<TesterAll>(objs, reader, conn, 0, true);
+
+			Assert.IsTrue(reader.IsClosed);
+			Assert.IsTrue(conn.State == ConnectionState.Closed);
 
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||
@@ -196,6 +205,11 @@ namespace DataMapperTest
 				)
 				Assert.Fail("FillObjectsTest with DBNull fails.");
 
+			reader.Close();
+
+			reader = _DateTable.CreateDataReader();
+			objs.Clear();
+			DataMapper.Default.FillObjectList<TesterAll>(objs, reader);
 			reader.Close();
 		}
 

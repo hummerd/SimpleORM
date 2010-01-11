@@ -99,10 +99,10 @@ namespace SimpleORM
 		public void FillObjectList<TObject>(IList objectList, IDataReader reader)
 			where TObject : class
 		{
-			FillObjectList<TObject>(objectList, reader, 0, true);
+			FillObjectList<TObject>(objectList, reader, null, 0, false);
 		}
 
-		public void FillObjectList<TObject>(IList objectList, IDataReader reader, int schemeId, bool clearObjectCache)
+		public void FillObjectList<TObject>(IList objectList, IDataReader reader, IDbConnection conn, int schemeId, bool close)
 			where TObject : class
 		{
 			if (objectList == null)
@@ -117,43 +117,63 @@ namespace SimpleORM
 			//Create new cache only if we manage objects cache
 			//if (clearObjectCache)
 			//   _CreatedObjects = new Dictionary<DataRow, object>();
-			
-			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(
-				objectType,
-				schemeId
-				);
-
-			if (extractInfo == null)
-				throw new InvalidOperationException("Can not fill object without mapping definition.");
-
-			MethodInfo method = null;
-			extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method);
-
-			while (reader.Read())
+			try
 			{
-				if (method == null)
+				ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(
+					objectType,
+					schemeId
+					);
+
+				if (extractInfo == null)
+					throw new InvalidOperationException("Can not fill object without mapping definition.");
+
+				DataTable schemeTable = null;
+				MethodInfo method = null;
+				extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method);
+
+				while (reader.Read())
 				{
-					DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-					_DMCodeGenerator.GenerateSetterMethod(
-						extractInfo,
-						schemeTable,
-						DataReaderPSG.TypeOfDataSource
-						);
+					if (method == null)
+					{
+						schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+						_DMCodeGenerator.GenerateSetterMethod(
+							extractInfo,
+							schemeTable,
+							DataReaderPSG.TypeOfDataSource
+							);
 
-					if (!extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method))
-						throw new InvalidOperationException("Failed to create setter method.");
+						if (!extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method))
+							throw new InvalidOperationException("Failed to create setter method.");
+					}
 
-					columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+					if (columnIndexes == null)
+					{
+						if (schemeTable == null)
+							schemeTable = GetTableFromSchema(reader.GetSchemaTable());
+
+						columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+					}
+
+					object obj = _ObjectBuilder.CreateObject(objectType);
+					//Fill object
+					CallExtractorMethod(method, obj, reader, columnIndexes);
+					objectList.Add(obj);
 				}
+			}
+			finally
+			{
+				if (close)
+				{
+					if (reader != null)
+						reader.Close();
 
-				object obj = _ObjectBuilder.CreateObject(objectType);
-				//Fill object
-				CallExtractorMethod(method, obj, reader, columnIndexes);
-				objectList.Add(obj);
+					if (conn != null)
+						conn.Close();
+				}
 			}
 		}
 
-		public void FillObjectListComplex<TObject>(IList objectList, IDataReader reader, int schemeId, bool clearObjectCache)
+		public void FillObjectListComplex<TObject>(IList objectList, IDataReader reader, int schemeId)
 			where TObject : class
 		{
 			if (objectList == null)
