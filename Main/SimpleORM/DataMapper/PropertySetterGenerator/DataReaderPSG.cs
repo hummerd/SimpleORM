@@ -81,7 +81,11 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.MarkLabel(lblElse);
 
 			bool readerMethodExist = _ReaderGetMethods.ContainsKey(sourceDataType);
-			bool useDirectSet = readerMethodExist && storeType == sourceDataType;
+			bool useDirectSet;
+			if (storeType.IsEnum && sourceDataType == typeof(int))
+				useDirectSet = true;
+			else
+				useDirectSet = readerMethodExist && storeType == sourceDataType;
 
 			if (setterType == SetterType.Nullable &&
 				prop.PropertyType.GetGenericArguments()[0] == sourceDataType)

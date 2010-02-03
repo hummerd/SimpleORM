@@ -80,10 +80,8 @@
     <Compile Include="PropertySetterGenerator\LinkedKeyCache.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />
     <Compile Include="PropertySetterGenerator\ReflectHelper.cs" />
+    <Compile Include="RefInfo.cs" />
     <Compile Include="StandartObjectBuilder.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="data.mapping" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">

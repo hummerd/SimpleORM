@@ -19,5 +19,17 @@ namespace SimpleORM
 
             list.Add(obj);
         }
+
+		public void AddRange(object key, IEnumerable<object> obj)
+		{
+			List<object> list;
+			if (!TryGetValue(key, out list))
+			{
+				list = new List<object>();
+				Add(key, list);
+			}
+
+			list.AddRange(obj);
+		}
     }
 }

@@ -167,6 +167,14 @@ namespace DataMapperTest
 
 	public class TesterAll
 	{
+		private TestEnum _EnumProp;
+		[DataColumnMap("Field4")]
+		public TestEnum EnumProp
+		{
+			get { return _EnumProp; }
+			set { _EnumProp = value; }
+		}
+
 		private int _ValueProp;
 		[DataColumnMapAttribute("Field1")]
 		public int ValueProp

@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<MappingDefinition>
+  
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Entity" schemeId="0">
+    <PropetyMapping propertyName="Id" dataColumnName="Id"/>
+    <PropetyMapping propertyName="Name" dataColumnName="Name"/>
+  </TypeMapping>
+
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.EntityType" schemeId="0">
+    <PropetyMapping propertyName="Id" dataColumnName="Id"/>
+    <PropetyMapping propertyName="Name" dataColumnName="Name"/>
+  </TypeMapping>
+  
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Parent" schemeId="0" tableName="PARENT">
+    <RefKey key="ParentChild1" ref="DataMapperTest, DataMapperTest.Child1">
+      <Column name="Id" foreignName="ParentId"/>
+    </RefKey>
+    <RefKey key="ParentChild2" ref="DataMapperTest, DataMapperTest.Child2">
+      <Column name="Id" foreignName="ParentId"/>
+    </RefKey>
+    <PropetyMapping propertyName="Date" dataColumnName="Date"/>
+    <PropetyMapping propertyName="EntityType" complex=""/>
+    <PropetyMapping propertyName="Childs1" dataRelationName="ParentChild1" />
+    <PropetyMapping propertyName="Childs2" dataRelationName="ParentChild2" />
+  </TypeMapping>
+
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child1" schemeId="0" tableName="CHILD1">
+    <PropetyMapping propertyName="Date" dataColumnName="Date"/>
+    <PropetyMapping propertyName="EntityType" complex=""/>
+  </TypeMapping>
+
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child2" schemeId="0" tableName="CHILD2">
+    <RefKey key="Child2Child" ref="DataMapperTest, DataMapperTest.Child2Child">
+      <Column name="Id" foreignName="ParentId"/>
+    </RefKey>
+    <PropetyMapping propertyName="Date" dataColumnName="Date"/>
+    <PropetyMapping propertyName="EntityType" complex=""/>
+    <PropetyMapping propertyName="Childs2" dataRelationName="Child2Child" />
+  </TypeMapping>
+
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child2Child" schemeId="0" tableName="CHILD2CHILD">
+    <PropetyMapping propertyName="Date" dataColumnName="Date"/>
+    <PropetyMapping propertyName="EntityType" complex=""/>
+  </TypeMapping>
+  
+</MappingDefinition>

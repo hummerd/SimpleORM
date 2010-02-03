@@ -269,8 +269,11 @@ namespace SimpleORM.PropertySetterGenerator
 					GenerateSetUnboxedToSubType(ilOut, propType, null);
 					break;
 
+				case SetterType.ReferenceNI:
+					GenerateSetConverted(ilOut, propType, true);
+					break;
 				case SetterType.ValueNI:
-					GenerateSetConverted(ilOut, propType);
+					GenerateSetConverted(ilOut, propType, false);
 					break;
 
 				case SetterType.Struct:
@@ -278,7 +281,7 @@ namespace SimpleORM.PropertySetterGenerator
 					break;
 
 				case SetterType.StructNI:
-					GenerateSetConverted(ilOut, propType);
+					GenerateSetConverted(ilOut, propType, false);
 					break;
 
 				case SetterType.Nullable:
@@ -329,14 +332,17 @@ namespace SimpleORM.PropertySetterGenerator
 			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 
-		protected void GenerateSetConverted(ILGenerator ilOut, Type propType)
+		protected void GenerateSetConverted(ILGenerator ilOut, Type propType, bool cast)
 		{
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloc_0);
 			ilOut.Emit(OpCodes.Ldtoken, propType);
 			ilOut.Emit(OpCodes.Call, _GetType);
 			ilOut.Emit(OpCodes.Call, _ChangeType);
-			ilOut.Emit(OpCodes.Unbox_Any, propType);
+			if (cast)
+				ilOut.Emit(OpCodes.Castclass, propType);
+			else
+				ilOut.Emit(OpCodes.Unbox_Any, propType);
 			//ilOut.Emit(OpCodes.Callvirt, setProp, null);
 		}
 

@@ -25,7 +25,8 @@ namespace SimpleORM.PropertySetterGenerator
 			StructNI,
 			Nullable,
 			NullableNI,
-			Reference
+			Reference,
+			ReferenceNI
 		}
 
 
@@ -34,6 +35,9 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			ilOut.DeclareLocal(typeof(object));
 			ilOut.DeclareLocal(typeof(int));
+			ilOut.DeclareLocal(typeof(bool));
+			ilOut.Emit(OpCodes.Ldc_I4_0);
+			ilOut.Emit(OpCodes.Stloc_2);
 		}
 
 		public void GenerateExtractComplex(
@@ -122,6 +126,7 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg, 4);
 
 			ilOut.Emit(OpCodes.Call, subExtract); // extract
+			ilOut.Emit(OpCodes.Pop);
 		}
 
 
@@ -150,7 +155,7 @@ namespace SimpleORM.PropertySetterGenerator
 					return SetterType.StructNI;
 			}
 			else if (!storeType.IsValueType && columnType != storeType)
-				return SetterType.ValueNI;
+				return SetterType.ReferenceNI;
 			else
 				return SetterType.Reference;
 		}
@@ -187,6 +192,7 @@ namespace SimpleORM.PropertySetterGenerator
 					GenerateSetEmpty(ilGen, propType);
 					break;
 
+				case SetterType.ReferenceNI:
 				case SetterType.Reference:
 					GenerateSetNull(ilGen);
 					break;
@@ -197,6 +203,8 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			LocalBuilder loc = ilOut.DeclareLocal(propType);
 
+			ilOut.Emit(OpCodes.Ldc_I4_1);
+			ilOut.Emit(OpCodes.Stloc_2);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldloca, loc);
 			ilOut.Emit(OpCodes.Initobj, propType);
@@ -205,14 +213,18 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected void GenerateSetNull(ILGenerator ilOut)
 		{
+			ilOut.Emit(OpCodes.Ldc_I4_1);
+			ilOut.Emit(OpCodes.Stloc_2);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldnull);
 		}
 
 		protected void GenerateSetDefault(ILGenerator ilOut)
 		{
+			ilOut.Emit(OpCodes.Ldc_I4_1);
+			ilOut.Emit(OpCodes.Stloc_2);
 			ilOut.Emit(OpCodes.Ldarg_0);
-			ilOut.Emit(OpCodes.Ldc_I4, 0);
+			ilOut.Emit(OpCodes.Ldc_I4_0);
 		}
 
 		protected void GenerateSet(ILGenerator ilOut, MethodInfo setProp, FieldInfo field)

@@ -23,7 +23,14 @@ namespace SimpleORM.PropertySetterGenerator
 		}
 		
 
-		public Type GenerateKeyType(string key, DataTable dtSource, List<string> columns, IPropertySetterGenerator methodGenerator, int schemeId)
+		public Type GenerateKeyType(
+			string key, 
+			DataTable dtSource, 
+			List<string> parentColumns,
+			List<string> childColumns,
+			IPropertySetterGenerator methodGenerator, 
+			int schemeId,
+			int childSchemeId)
 		{
 			string className = "DataPropertySetter_" + key;
 			var tb = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
@@ -45,26 +52,38 @@ namespace SimpleORM.PropertySetterGenerator
 			ILGenerator equalsGen = equals.GetILGenerator();
 			LocalBuilder locObj = equalsGen.DeclareLocal(tb);
 			Label lblRetFalse = equalsGen.DefineLabel();
+			Label lblTypeSame = equalsGen.DefineLabel();
 
 			equalsGen.Emit(OpCodes.Ldarg_1);
-			equalsGen.Emit(OpCodes.Castclass, tb);
+			equalsGen.Emit(OpCodes.Isinst, tb);
 			equalsGen.Emit(OpCodes.Stloc_0);
-			
+			equalsGen.Emit(OpCodes.Ldloc_0);
+			equalsGen.Emit(OpCodes.Brfalse, lblRetFalse);
+			//equalsGen.Emit(OpCodes.Ldc_I4_0);
+			//equalsGen.Emit(OpCodes.Ret);
+
 			bool needCeq = false;
 			bool first = true;
 
-			foreach (var item in columns)
+			for (int i = 0; i < parentColumns.Count; i++)
 			{
+				string parentColumn = parentColumns[i];
 				//Generate field
-				Type fieldType = dtSource.Columns[item].DataType;
-				var fb = tb.DefineField(item, fieldType, FieldAttributes.Public);
+				Type fieldType = dtSource.Columns[parentColumn].DataType;
+				var fb = tb.DefineField(parentColumn, fieldType, FieldAttributes.Public);
 
 				//Generate mapping definition attribute on this field
-				CustomAttributeBuilder attributeBuilder =
+				CustomAttributeBuilder attributeBuilderParent =
 					new CustomAttributeBuilder(
 							typeof(DataColumnMapAttribute).GetConstructor(new Type[2] { typeof(string), typeof(int) }),
-							new object[2] { item, schemeId });
-				fb.SetCustomAttribute(attributeBuilder);
+							new object[2] { parentColumn, schemeId });
+				fb.SetCustomAttribute(attributeBuilderParent);
+
+				CustomAttributeBuilder attributeBuilderChild =
+				new CustomAttributeBuilder(
+						typeof(DataColumnMapAttribute).GetConstructor(new Type[2] { typeof(string), typeof(int) }),
+						new object[2] { childColumns[i], childSchemeId });
+				fb.SetCustomAttribute(attributeBuilderChild);
 
 				//L_000b: ldarg.0 
 				//L_000c: ldflda valuetype [mscorlib]System.DateTime WindowsApplication1.Class1::Col3

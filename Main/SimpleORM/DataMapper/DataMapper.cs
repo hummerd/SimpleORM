@@ -151,7 +151,7 @@ namespace SimpleORM
 						if (schemeTable == null)
 							schemeTable = GetTableFromSchema(reader.GetSchemaTable());
 
-						columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+						columnIndexes = extractInfo.GetSubColumnsIndexes(schemeTable);
 					}
 
 					object obj = _ObjectBuilder.CreateObject(objectType);
@@ -207,7 +207,7 @@ namespace SimpleORM
 					continue;
 
 				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
-				List<ExtractInfo> assosiatedEI = extractInfo.FindByTable(tableIx++, schemeTable.TableName);
+				List<ExtractInfo> assosiatedEI = extractInfo.FindByTable(tableIx, schemeTable.TableName);
 
 				for (int i = 0; i < assosiatedEI.Count; i++)
 				{
@@ -227,23 +227,54 @@ namespace SimpleORM
 							throw new InvalidOperationException("Failed to create setter method.");
 					}
 
-					columnIndexes = GetSubColumnsIndexes(schemeTable, currentEI);
+					columnIndexes = currentEI.GetSubColumnsIndexes(schemeTable);
+
+					List<KeyInfo> primaryKeys = currentEI.PrimaryKeyInfo;
+					primaryKeys.ForEach(pki =>
+						pki.InitParentColumnIndexes(schemeTable)
+						);
+
+					List<KeyInfo> foreignKeys = currentEI.ForeignKeysInfo.FindAll(fki =>
+						fki.RefTable.EmptyOrRefersTo(tableIx, schemeTable.TableName));
+
+					foreignKeys.ForEach(fki =>
+						fki.InitChildColumnIndexes(schemeTable)
+						);
 
                     KeyObjectIndex pkObjects;
                     KeyObjectIndex fkObjects;
 
 					ExtractObjects(
 					   reader,
-					   currentEI,
+					   currentEI.TargetType,
+					   primaryKeys,
+					   foreignKeys,
 					   out pkObjects,
 					   out fkObjects,
 					   columnIndexes,
 					   currentEI == extractInfo ? objectList : null,
 					   extractMethod);
 
-					tempPrimary.Add(currentEI, pkObjects);
-					tempForeign.Add(currentEI, fkObjects);
+					KeyObjectIndex koi;
+					if (tempPrimary.TryGetValue(currentEI, out koi))
+					{
+						foreach (var item in pkObjects)
+							koi.AddRange(item.Key, item.Value);
+					}
+					else
+						tempPrimary.Add(currentEI, pkObjects);
+
+
+					if (tempForeign.TryGetValue(currentEI, out koi))
+					{
+						foreach (var item in fkObjects)
+							koi.AddRange(item.Key, item.Value);
+					}
+					else
+						tempForeign.Add(currentEI, fkObjects);
 				}
+
+				tableIx++;
 			} while (reader.NextResult());
 
 			LinkObjects(extractInfo, tempPrimary, tempForeign);
@@ -251,7 +282,9 @@ namespace SimpleORM
 
 		protected void ExtractObjects(
 			IDataReader reader,
-			ExtractInfo extractInfo,
+			Type targetType,
+			List<KeyInfo> pkInfo,
+			List<KeyInfo> fkInfo,
             out KeyObjectIndex pkObjects,
 			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
@@ -262,29 +295,33 @@ namespace SimpleORM
             pkObjects = new KeyObjectIndex();
 			fkObjects = new KeyObjectIndex();
 
-			KeyInfo pkInfo = extractInfo.PrimaryKeyInfo;
-			List<KeyInfo> fkInfo = extractInfo.ForeignKeysInfo;
-
 			do
 			{
-				object obj = _ObjectBuilder.CreateObject(extractInfo.TargetType);
+				object obj = _ObjectBuilder.CreateObject(targetType);
 				//Fill object
 				CallExtractorMethod(method, obj, reader, columnIndexes);
 
-				if (pkInfo != null)
+				if (pkInfo != null && pkInfo.Count > 0)
 				{
-					object pk = _ObjectBuilder.CreateObject(pkInfo.KeyType);
-					CallExtractorMethod(pkInfo.FillMethod, pk, reader, columnIndexes);
-					pkObjects.AddObject(pk, obj);
+					for (int i = 0; i < pkInfo.Count; i++)
+					{
+						KeyInfo pki = pkInfo[i];
+						object pk = _ObjectBuilder.CreateObject(pki.ParentKeyExtractInfo.TargetType);
+						bool hasNulls = CallExtractorMethod(pki.GetParentKeyExtractorMethod(), pk, reader, pki.ParentColumnIndexes);
+						pkObjects.AddObject(pk, obj);
+					}
 				}
 
-				if (fkInfo.Count > 0)
+				if (fkInfo != null && fkInfo.Count > 0)
 				{
-					foreach (var item in fkInfo)
+					for (int i = 0; i < fkInfo.Count; i++)
 					{
-						object fk = _ObjectBuilder.CreateObject(item.KeyType);
-						CallExtractorMethod(item.FillMethod, fk, reader, columnIndexes);
-						fkObjects.AddObject(fk, obj);
+						KeyInfo fki = fkInfo[i];
+						object fk = _ObjectBuilder.CreateObject(fki.ChildKeyExtractInfo.TargetType);
+						bool hasNulls = CallExtractorMethod(fki.GetChildKeyExtractorMethod(), fk, reader, fki.ChildColumnIndexes);
+						//according to ansi null comparsion, nothing can be equal to this key
+						if (!hasNulls)
+							fkObjects.AddObject(fk, obj);
 					}
 				}
 
@@ -341,7 +378,7 @@ namespace SimpleORM
 				if (obj == null)
 					obj = _ObjectBuilder.CreateObject(objectType);
 
-				List<List<int>> columnIndexes = GetSubColumnsIndexes(schemeTable, extractInfo);
+				List<List<int>> columnIndexes = extractInfo.GetSubColumnsIndexes(schemeTable);
 
 				bool hasData = true;
 				if (read)
@@ -467,7 +504,7 @@ namespace SimpleORM
 
 			_CreatedObjects = new Dictionary<DataRow, object>(1);
 
-			List<List<int>> columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
+			List<List<int>> columnIndexes = extractInfo.GetSubColumnsIndexes(dataRow.Table);
 
 			//If there is no instance create it
 			if (obj == null)
@@ -481,29 +518,57 @@ namespace SimpleORM
 
 		protected void LinkObjects(
 			ExtractInfo extractInfo,
-            Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
-            Dictionary<ExtractInfo, KeyObjectIndex> tempForeign)
+			Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
+			Dictionary<ExtractInfo, KeyObjectIndex> tempForeign)
 		{
+			LinkObjects(
+				extractInfo, 
+				tempPrimary,
+				tempForeign,
+				new Dictionary<ExtractInfo ,object>(20)
+				);
+		}
+
+		protected void LinkObjects(
+			ExtractInfo extractInfo,
+            Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
+            Dictionary<ExtractInfo, KeyObjectIndex> tempForeign,
+			Dictionary<ExtractInfo, object> filled)
+		{
+			if (filled.ContainsKey(extractInfo))
+				return;
+
+			filled.Add(extractInfo, null);
 			Dictionary<object, List<object>> pkObjects = tempPrimary[extractInfo];
 
 			for (int i = 0; i < extractInfo.ChildTypes.Count; i++)
 			{
-				Dictionary<object, List<object>> fkObjects = tempForeign[extractInfo.ChildTypes[i].ExtractInfo];
+				RelationExtractInfo childEI = extractInfo.ChildTypes[i];
+				LinkObjects(childEI.ExtractInfo, tempPrimary, tempForeign, filled);
+
+				Dictionary<object, List<object>> fkObjects = tempForeign[childEI.ExtractInfo];
 
 				foreach (var item in pkObjects)
 				{
                     List<object> parentList = item.Value;
-					IList children = fkObjects[item.Key];
 
+					List<object> children;
+					fkObjects.TryGetValue(item.Key, out children);
+					
                     foreach (var parent in parentList)
                     {
-						PropertyInfo pi = extractInfo.ChildTypes[i].Member as PropertyInfo;
+						PropertyInfo pi = childEI.Member as PropertyInfo;
 						IList lst = pi.GetValue(parent, null) as IList;
-						if (lst != null)
+
+						if (lst == null)
+						{
+							lst = (IList)Activator.CreateInstance(pi.PropertyType);
+							pi.SetValue(parent, lst, null); 
+						}
+
+						if (children != null)
 							for (int k = 0; k < children.Count; k++)
 								lst.Add(children[k]);
-						
-                        //parent.Cjildren.Add(children);
                     }
 				}
 			}
@@ -561,7 +626,7 @@ namespace SimpleORM
 				}
 
 				if (columnIndexes == null)
-					columnIndexes = GetSubColumnsIndexes(dataRow.Table, extractInfo);
+					columnIndexes = extractInfo.GetSubColumnsIndexes(dataRow.Table);
 
 				object obj;
 				if (!_CreatedObjects.TryGetValue(dataRow, out obj))
@@ -579,37 +644,12 @@ namespace SimpleORM
 				_CreatedObjects.Clear();
 		}
 
-		protected List<List<int>> GetSubColumnsIndexes(DataTable table, ExtractInfo extractInfo)
-		{
-			return GetSubColumnsIndexes(table, extractInfo, null);
-		}
 
-		protected List<List<int>> GetSubColumnsIndexes(DataTable table, ExtractInfo extractInfo, List<List<int>> result)
-		{
-			if (result == null)
-				result = new List<List<int>>();
 
-			result.Add(GetColumnsIndexes(table, extractInfo.MemberColumns));
-
-			foreach (var item in extractInfo.SubTypes)
-				GetSubColumnsIndexes(table, item.ExtractInfo, result);
-
-			return result;
-		}
-
-		protected List<int> GetColumnsIndexes(DataTable table, List<MemberExtractInfo> columns)
-		{
-			List<int> result = new List<int>(columns.Count);
-			for (int i = 0; i < columns.Count; i++)
-				result.Add(table.Columns.IndexOf(columns[i].MapName));
-
-			return result;
-		}
-
-		protected void CallExtractorMethod(MethodInfo extractorMethod, object obj, object data, List<List<int>> subColumns)
+		protected bool CallExtractorMethod(MethodInfo extractorMethod, object obj, object data, List<List<int>> subColumns)
 		{
 			int clmn = 0;
-			extractorMethod.Invoke(null, new object[] { obj, data, this, subColumns, clmn });
+			return (bool)extractorMethod.Invoke(null, new object[] { obj, data, this, subColumns, clmn });
 		}
 
 		/// <summary>

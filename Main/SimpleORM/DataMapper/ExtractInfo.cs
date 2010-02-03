@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
 using SimpleORM.Attributes;
+using System.Data;
 
 
 namespace SimpleORM
@@ -11,19 +12,18 @@ namespace SimpleORM
 	/// Class that represents information about mapping TargetType with SchemeId.
 	/// Also class contains references to generated fill methods (FillMethod dictionary).
 	/// </summary>
-	public class ExtractInfo
+	public class ExtractInfo : ICloneable
 	{
-		protected Type									_TargetType;
-		protected int									_SchemeId;
-		protected Dictionary<Type, MethodInfo> _FillMethod;
+		protected Type							_TargetType;
+		protected int							_SchemeId;
+		protected Dictionary<Type, MethodInfo>	_FillMethod;
 		protected List<MemberExtractInfo>		_PropColumns;
 		protected List<RelationExtractInfo>		_SubTypes;
 		protected List<RelationExtractInfo>		_ChildTypes;
-		protected KeyInfo					_PrimaryKeyInfo;
-		protected List<KeyInfo>			_ForeignKeysInfo;
-		protected int						_TableID = -1;
-		protected string					_TableName;
-		protected IList<PropertyInfo> _Props;
+		protected List<KeyInfo>					_PrimaryKeysInfo;
+		protected List<KeyInfo>					_ForeignKeysInfo;
+		protected RefInfo				_RefTable;
+		protected IList<PropertyInfo>	_Props;
 		protected IList<FieldInfo>		_Fields;
 
 
@@ -33,6 +33,7 @@ namespace SimpleORM
 			_SchemeId = schemeId;
 			_FillMethod = new Dictionary<Type, MethodInfo>();
 			_PropColumns = new List<MemberExtractInfo>();
+			_PrimaryKeysInfo = new List<KeyInfo>();
 			_ForeignKeysInfo = new List<KeyInfo>();
 			_SubTypes = new List<RelationExtractInfo>();
 			_ChildTypes = new List<RelationExtractInfo>();
@@ -115,10 +116,10 @@ namespace SimpleORM
 			set { _ChildTypes = value; }
 		}
 
-		public KeyInfo PrimaryKeyInfo
+		public List<KeyInfo> PrimaryKeyInfo
 		{
-			get { return _PrimaryKeyInfo; }
-			set { _PrimaryKeyInfo = value; }
+			get { return _PrimaryKeysInfo; }
+			set { _PrimaryKeysInfo = value; }
 		}
 
 		public List<KeyInfo> ForeignKeysInfo
@@ -127,36 +128,43 @@ namespace SimpleORM
 			set { _ForeignKeysInfo = value; }
 		}
 		
-		public int TableID
+		public RefInfo RefTable
 		{
 			get
 			{
-				return _TableID;
+				return _RefTable;
 			}
 			set
 			{
-				_TableID = value;
-			}
-		}
-
-		public string TableName
-		{
-			get
-			{
-				return _TableName;
-			}
-			set
-			{
-				_TableName = value;
+				_RefTable = value;
 			}
 		}
 
 
+		public ExtractInfo Copy()
+		{
+			return Clone() as ExtractInfo;
+		}
+
+		#region ICloneable Members
+
+		public object Clone()
+		{
+			return MemberwiseClone();
+		}
+
+		#endregion
+
+		public List<List<int>> GetSubColumnsIndexes(DataTable table)
+		{
+			return GetSubColumnsIndexes(table, null);
+		}
+		
 		public List<ExtractInfo> FindByTable(int id, string name)
 		{
 			List<ExtractInfo> result = new List<ExtractInfo>();
 
-			if (id == TableID || name == TableName)
+			if (_RefTable.RefersTo(id, name))
 			{
 				result.Add(this);
 				return result;
@@ -164,9 +172,10 @@ namespace SimpleORM
 
 			foreach (RelationExtractInfo item in ChildTypes)
 			{
-				ExtractInfo ei = item.ExtractInfo;
-				if (id == ei.TableID || name == ei.TableName)
-					result.Add(ei);
+#warning here can be infinite recursion
+				result.AddRange(
+					item.ExtractInfo.FindByTable(id, name)
+					);
 			}
 
 			return result;
@@ -180,6 +189,29 @@ namespace SimpleORM
 				TargetType,
 				SchemeId
 				);
+		}
+
+
+		protected List<List<int>> GetSubColumnsIndexes(DataTable table, List<List<int>> result)
+		{
+			if (result == null)
+				result = new List<List<int>>();
+
+			result.Add(GetColumnsIndexes(table, MemberColumns));
+
+			foreach (var item in SubTypes)
+				item.ExtractInfo.GetSubColumnsIndexes(table, result);
+
+			return result;
+		}
+
+		protected List<int> GetColumnsIndexes(DataTable table, List<MemberExtractInfo> columns)
+		{
+			List<int> result = new List<int>(columns.Count);
+			for (int i = 0; i < columns.Count; i++)
+				result.Add(table.Columns.IndexOf(columns[i].MapName));
+
+			return result;
 		}
 	}
 

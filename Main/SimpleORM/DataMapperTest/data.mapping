@@ -1,10 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <MappingDefinition>
-	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0" tableIx="0">
-    <RefKey key="Relation1">
-      <Column name="ParentId"/>
-    </RefKey>
-    <RefKey ref="Relation1" >
+	<TypeMapping typeName="DataMapperTest, DataMapperTest.TesterAll" schemeId="0" tableIx="0;1">
+    <RefKey key="Relation1" ref="DataMapperTest, DataMapperTest.TesterAll" tableIx="1">
       <Column name="ParentId"/>
     </RefKey>
 		<PropetyMapping propertyName="ValueProp" dataColumnName="Field1"/>

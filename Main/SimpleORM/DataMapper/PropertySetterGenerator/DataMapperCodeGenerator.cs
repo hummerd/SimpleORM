@@ -16,7 +16,8 @@ namespace SimpleORM.PropertySetterGenerator
 	public class DataMapperCodeGenerator
 	{
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
-		protected readonly LinkedKeyCache _LinkedKeyCache = new LinkedKeyCache();
+		//protected readonly LinkedKeyCache _LinkedKeyCache = new LinkedKeyCache();
+		protected readonly Dictionary<KeyInfo, KeyInfo> _LinkedKeyCache = new Dictionary<KeyInfo, KeyInfo>();
 
 		protected string			_GeneratedFileName;
 		protected ModuleBuilder		_ModuleBuilder;
@@ -296,11 +297,10 @@ namespace SimpleORM.PropertySetterGenerator
 
 			//Cache miss, create new one
 			result = new ExtractInfo(targetClassType, schemeId);
-			int tableIx;
+			int[] tableIx;
 			string tableName;
 			GetTableID(targetClassType, schemeId, out tableIx, out tableName);
-			result.TableID = tableIx;
-			result.TableName = tableName;
+			result.RefTable = new RefInfo(tableIx, tableName);
 
 			Debug.WriteLine(string.Format(
 				new String('\t', extractLevel) + "Creating {0}",
@@ -409,14 +409,16 @@ namespace SimpleORM.PropertySetterGenerator
 			}
 
 			//Extract info about primary Key
-			result.PrimaryKeyInfo = GetPrimaryKey(targetClassType, schemeId);
+			result.PrimaryKeyInfo.AddRange(
+				GetPrimaryKeys(targetClassType, schemeId)
+				);
 
 			//Extract info about foreign keys
 			result.ForeignKeysInfo.AddRange(
 				GetForeignKeys(targetClassType, schemeId)
 				);
 
-			FindLinkedKeys(result, _LinkedKeyCache);
+			//FindLinkedKeys(result, _LinkedKeyCache);
 
 			Debug.WriteLine(string.Format(
 				new String('\t', extractLevel) + "Done with creating {0}",
@@ -474,6 +476,7 @@ namespace SimpleORM.PropertySetterGenerator
 						"Warning! Column {0} that was defined in mapping does not exists. No mapping code will be generated for member {1}",
 						mei.MapName,
 						mei.Member.Name));
+					propIx++;
 					continue;
 				}
 
@@ -520,6 +523,7 @@ namespace SimpleORM.PropertySetterGenerator
 					);
 			}
 
+			ilGen.Emit(OpCodes.Ldloc_2);
 			ilGen.Emit(OpCodes.Ret);
 			Type type = typeBuilder.CreateType();
 
@@ -535,33 +539,8 @@ namespace SimpleORM.PropertySetterGenerator
 				type.GetMethod("SetProps_" + extractInfo.TargetType);
 
 			//Extract info about primary Key
-			if (extractInfo.PrimaryKeyInfo != null)
-			{
-				extractInfo.PrimaryKeyInfo = GenerateKey(
-					extractInfo.PrimaryKeyInfo,
-					true,
-					extractInfo.TargetType,
-					extractInfo.SchemeId,
-					dtSource,
-					generatorSourceType);
-			}
-
-			//Extract info about foreign keys
-			List<KeyInfo> foreignKeysInfo = new List<KeyInfo>();
-			foreach (KeyInfo fk in extractInfo.ForeignKeysInfo)
-			{
-				foreignKeysInfo.Add(
-					GenerateKey(
-						fk,
-						false,
-						extractInfo.TargetType,
-						extractInfo.SchemeId,
-						dtSource,
-						generatorSourceType)
-					);
-			}
-
-			extractInfo.ForeignKeysInfo = foreignKeysInfo;
+			GenerateKeys(extractInfo, dtSource, generatorSourceType, true);
+			GenerateKeys(extractInfo, dtSource, generatorSourceType, false);
 
 			Debug.WriteLine(string.Format(
 				new String('\t', extractLevel) + "Done with creating method for {0}",
@@ -572,13 +551,13 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected void FindLinkedKeys(ExtractInfo info, LinkedKeyCache result)
 		{
-			if (info.PrimaryKeyInfo != null)
+			foreach (var priKey in info.PrimaryKeyInfo)
 			{
 				List<KeyInfo> linkedKeys = new List<KeyInfo>();
 				result.Add(linkedKeys);
 
-				linkedKeys.Add(info.PrimaryKeyInfo);
-				string relationName = info.PrimaryKeyInfo.Name;
+				linkedKeys.Add(priKey);
+				string relationName = priKey.Name;
 
 				for (int i = 0; i < info.ChildTypes.Count; i++)
 				{
@@ -654,17 +633,15 @@ namespace SimpleORM.PropertySetterGenerator
 
 			return type.GetGenericArguments()[0];
 		}
-		
-		protected KeyInfo GetPrimaryKey(Type targetClassType, int schemeId)
+
+		protected List<KeyInfo> GetPrimaryKeys(Type targetClassType, int schemeId)
 		{
 			if (IsXmlMappingExists(targetClassType, schemeId))
 			{
-				List<KeyInfo> keys = GetKeysFromXmlMapping(targetClassType, schemeId, true);
-				if (keys.Count > 0)
-					return keys[0];
+				return GetKeysFromXmlMapping(targetClassType, schemeId, true);
 			}
 
-			return null;
+			return new List<KeyInfo>();
 		}
 
 		protected List<KeyInfo> GetForeignKeys(Type targetClassType, int schemeId)
@@ -679,7 +656,10 @@ namespace SimpleORM.PropertySetterGenerator
 
         protected List<KeyInfo> GetKeysFromXmlMapping(Type targetClassType, int schemeId, bool primary)
         {
-            XmlNodeList keys = FindKeys(targetClassType, schemeId);
+			XmlNodeList keys = primary ?
+				FindKeys(targetClassType, schemeId):
+				FindForeignKeys(targetClassType, schemeId);
+
 			List<KeyInfo> result = new List<KeyInfo>(keys.Count);
 
 			foreach (XmlNode item in keys)
@@ -687,56 +667,126 @@ namespace SimpleORM.PropertySetterGenerator
 				if (item.NodeType == XmlNodeType.Comment)
 					continue;
 
-				XmlAttribute att = item.Attributes[primary ? "key" : "ref"];
-				if (att != null)
+				int[] tableIx;
+				string tableName;
+				GetTableID(item, out tableIx, out tableName);
+
+				XmlAttribute att = item.Attributes["key"];
+				KeyInfo ki = new KeyInfo();
+				ki.Name = att.Value;
+				ki.RefTable = new RefInfo(tableIx, tableName);
+				ki.ChildType = GetType(item.Attributes["ref"].Value);
+				ki.ParentType = GetType(item.ParentNode.Attributes["typeName"].Value);
+
+				KeyInfo existingKey;
+				if (_LinkedKeyCache.TryGetValue(ki, out existingKey))
 				{
-					KeyInfo ki = new KeyInfo();
-					ki.Name = att.Value;
+					result.Add(existingKey);
+					continue;
+				}
 
-					foreach (XmlNode clmn in item.ChildNodes)
-					{
-						if (clmn.NodeType == XmlNodeType.Comment)
-							continue;
+				_LinkedKeyCache.Add(ki, ki);
+				result.Add(ki);
 
-						ki.Columns.Add(clmn.Attributes["name"].Value);
-					}
+				foreach (XmlNode clmn in item.ChildNodes)
+				{
+					if (clmn.NodeType == XmlNodeType.Comment)
+						continue;
 
-					result.Add(ki);
+					string parentColumn = clmn.Attributes["name"].Value;
+					ki.ParentColumns.Add(parentColumn);
+
+					if (clmn.Attributes["foreignName"] == null ||
+						string.IsNullOrEmpty(clmn.Attributes["foreignName"].Value))
+						ki.ChildColumns.Add(parentColumn);
+					else
+						ki.ChildColumns.Add(clmn.Attributes["foreignName"].Value);
 				}
 			}
 
 			return result;
         }
 
+		protected Type GetType(string typePath)
+		{ 
+			var parts = typePath.Split(',');
+			return Assembly.Load(parts[0].Trim()).GetType(parts[1].Trim());
+		}
+
+		protected void GenerateKeys(ExtractInfo extractInfo, DataTable dtSource, Type generatorSourceType, bool primary)
+		{
+			List<KeyInfo> keysInfo = new List<KeyInfo>();
+
+			List<KeyInfo> sourceKeysInfo = primary ?
+				extractInfo.PrimaryKeyInfo :
+				extractInfo.ForeignKeysInfo;
+
+			foreach (KeyInfo pk in sourceKeysInfo)
+			{
+				keysInfo.Add(
+					GenerateKey(
+						pk,
+						primary,
+						extractInfo.TargetType,
+						extractInfo.SchemeId,
+						dtSource,
+						generatorSourceType)
+					);
+			}
+
+			if (primary)
+				extractInfo.PrimaryKeyInfo = keysInfo;
+			else
+				extractInfo.ForeignKeysInfo = keysInfo;
+		}
+
 		protected KeyInfo GenerateKey(KeyInfo keyInfo, bool primary, Type targetType, int schemeId, DataTable dtSource, Type generatorSourceType)
 		{
-			if (keyInfo.KeyType != null)
+			//if (keyInfo.KeyExtractInfo != null && keyInfo.KeyExtractInfo.TargetType != null)
+			//    return keyInfo;
+
+			if (keyInfo.ParentKeyExtractInfo != null)
 				return keyInfo;
 
 			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
-			string key = keyInfo.Name + (primary ? "_pk_" : "_fk_") + targetType;
+			string keyClass = keyInfo.Name + "_" + targetType;
+#warning think about unique key class name
+
+			int childSchemeId = schemeId == 0 ? int.MinValue : -schemeId;
 
 			Type keyType = _KeyGenerator.GenerateKeyType(
-				key,
+				keyClass,
 				dtSource,
-				keyInfo.Columns,
+				keyInfo.ParentColumns,
+				keyInfo.ChildColumns,
 				methodGenerator,
-				schemeId
+				schemeId,
+				childSchemeId
 				);
 
-			MethodInfo keyFillMethod = CreateExtractInfoWithMethod(
+			ExtractInfo primaryExtractInfo = CreateExtractInfoWithMethod(
 				keyType,
 				schemeId,
 				dtSource,
 				generatorSourceType
-				).FillMethod[generatorSourceType];
+				);
 
-			List<KeyInfo> keys = _LinkedKeyCache.FindLinkedKeys(keyInfo);
-			for (int i = 0; i < keys.Count; i++)
-			{
-				keys[i].KeyType = keyType;
-				keys[i].FillMethod = keyFillMethod;
-			}
+			
+			ExtractInfo foreignExtractInfo = primaryExtractInfo.Copy();
+			foreignExtractInfo.SchemeId = childSchemeId;
+			foreignExtractInfo.MemberColumns = CreateExtractInfo(keyType, childSchemeId).MemberColumns;
+
+			keyInfo.GeneratorSourceType = generatorSourceType;
+			keyInfo.ParentKeyExtractInfo = primaryExtractInfo;
+			keyInfo.ChildKeyExtractInfo = foreignExtractInfo;
+
+			//List<KeyInfo> keys = _LinkedKeyCache.FindLinkedKeys(keyInfo);
+			//for (int i = 0; i < keys.Count; i++)
+			//{
+			//    KeyInfo key = keys[i];
+			//    key.GeneratorSourceType = generatorSourceType;
+			//    key.KeyExtractInfo = keyFillMethod;
+			//}
 
 			return keyInfo;
 		}
@@ -786,7 +836,8 @@ namespace SimpleORM.PropertySetterGenerator
 		{
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("SetProps_" + targetClassType,
 				MethodAttributes.Public | MethodAttributes.Static,
-				CallingConventions.Standard, typeof(void),
+				CallingConventions.Standard, 
+				typeof(bool),
 				new Type[] { targetClassType, dataSourceType, typeof(DataMapper), typeof(List<List<int>>), Type.GetType("System.Int32&") });
 
 			methodBuilder.DefineParameter(1, ParameterAttributes.In, "target");
@@ -798,22 +849,36 @@ namespace SimpleORM.PropertySetterGenerator
 			return methodBuilder;
 		}
 
-		protected void GetTableID(Type targetClassType, int schemeId, out int tableIx, out string tableName)
+		protected void GetTableID(Type targetClassType, int schemeId, out int[] tableIx, out string tableName)
 		{ 
-			tableIx = -1;
+			tableIx = null;
 			tableName = String.Empty;
 
 			if (IsXmlMappingExists(targetClassType, schemeId))
 			{
 				XmlNode objMap = FindObjectMapping(targetClassType, schemeId);
-				XmlAttribute tix = objMap.Attributes["tableIx"];
-				if (tix != null)
-					tableIx = int.Parse(tix.Value);
-
-				XmlAttribute tn = objMap.Attributes["tableName"];
-				if (tn != null)
-					tableName = tn.Value;
+				GetTableID(objMap, out tableIx, out tableName);
 			}
+		}
+
+		protected void GetTableID(XmlNode node, out int[] tableIx, out string tableName)
+		{
+			tableIx = null;
+			tableName = String.Empty;
+
+			XmlAttribute tix = node.Attributes["tableIx"];
+			if (tix != null)
+			{
+				string[] vals = tix.Value.Split(';');
+				tableIx = new int[vals.Length];
+
+				for (int i = 0; i < vals.Length; i++)
+					tableIx[i] = int.Parse(vals[i]);
+			}
+
+			XmlAttribute tn = node.Attributes["tableName"];
+			if (tn != null)
+				tableName = tn.Value;
 		}
 
 		/// <summary>
@@ -938,6 +1003,19 @@ namespace SimpleORM.PropertySetterGenerator
             //Looking for node
             return _XmlDocument.SelectNodes(qry);
         }
+
+		protected XmlNodeList FindForeignKeys(Type targetType, int schemeId)
+		{
+			//Generate XPath Query
+			string qry = "/MappingDefinition/TypeMapping/RefKey{0}";
+			string type = targetType.Assembly.GetName().Name;
+			type = type + ", " + targetType.FullName;
+			string typeClause = "[@ref=\"" + type + "\"]";
+			qry = String.Format(qry, typeClause);
+
+			//Looking for node
+			return _XmlDocument.SelectNodes(qry);
+		}
 
 		/// <summary>
 		/// Extracts nested type info from mapping definition
