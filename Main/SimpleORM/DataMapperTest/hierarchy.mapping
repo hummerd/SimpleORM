@@ -12,10 +12,10 @@
   </TypeMapping>
   
   <TypeMapping typeName="DataMapperTest, DataMapperTest.Parent" schemeId="0" tableName="PARENT">
-    <RefKey key="ParentChild1" ref="DataMapperTest, DataMapperTest.Child1">
+    <RefKey key="ParentChild1">
       <Column name="Id" foreignName="ParentId"/>
     </RefKey>
-    <RefKey key="ParentChild2" ref="DataMapperTest, DataMapperTest.Child2">
+    <RefKey key="ParentChild2">
       <Column name="Id" foreignName="ParentId"/>
     </RefKey>
     <PropetyMapping propertyName="Date" dataColumnName="Date"/>
@@ -24,17 +24,17 @@
     <PropetyMapping propertyName="Childs2" dataRelationName="ParentChild2" />
   </TypeMapping>
 
-  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child1" schemeId="0" tableName="CHILD1">
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child1" tableName="CHILD1">
     <PropetyMapping propertyName="Date" dataColumnName="Date"/>
     <PropetyMapping propertyName="EntityType" complex=""/>
   </TypeMapping>
 
-  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child2" schemeId="0" tableName="CHILD2">
-    <RefKey key="Child2Child" ref="DataMapperTest, DataMapperTest.Child2Child">
+  <TypeMapping typeName="DataMapperTest, DataMapperTest.Child2" tableName="CHILD2">
+    <RefKey key="Child2Child">
       <Column name="Id" foreignName="ParentId"/>
     </RefKey>
     <PropetyMapping propertyName="Date" dataColumnName="Date"/>
-    <PropetyMapping propertyName="EntityType" complex=""/>
+    <PropetyMapping propertyName="EntityType"/>
     <PropetyMapping propertyName="Childs2" dataRelationName="Child2Child" />
   </TypeMapping>
 

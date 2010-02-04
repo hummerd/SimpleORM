@@ -28,11 +28,10 @@ namespace SimpleORM.PropertySetterGenerator
 			DataTable dtSource, 
 			List<string> parentColumns,
 			List<string> childColumns,
-			IPropertySetterGenerator methodGenerator, 
 			int schemeId,
 			int childSchemeId)
 		{
-			string className = "DataPropertySetter_" + key;
+			string className = "DataPropertySetter." + key;
 			var tb = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
 
 			MethodBuilder getHash = tb.DefineMethod("GetHashCode",

@@ -163,8 +163,10 @@ namespace DataMapperTest
 		{
 			TesterComplexProp2 tester = new TesterComplexProp2();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			//DataMapper.Default.GeneratedFileName = "recur.dll";
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
+			//DataMapper.Default.SaveGeneratedAsm();
 
 			if (tester.CmplProp == null)
 				Assert.Fail("FillObjectTest_ComplexProp fails.");
@@ -193,7 +195,7 @@ namespace DataMapperTest
 		{
 			TesterComplexProp tester = new TesterComplexProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.EnumProp != TestEnum.First)
@@ -220,7 +222,7 @@ namespace DataMapperTest
 		{
 			TesterEnumProp tester = new TesterEnumProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.EnumProp != TestEnum.First)
@@ -237,7 +239,7 @@ namespace DataMapperTest
 		{
 			TesterNullableProp tester = new TesterNullableProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.NullableProp != _CurrentDate)
@@ -254,7 +256,7 @@ namespace DataMapperTest
 		{
 			TesterNullablePropNI tester = new TesterNullablePropNI();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.NullableProp != true)
@@ -271,7 +273,7 @@ namespace DataMapperTest
 		{
 			TesterValueProp tester = new TesterValueProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.ValueProp != 72)
@@ -288,7 +290,7 @@ namespace DataMapperTest
 		{
 			TesterValuePropNI tester = new TesterValuePropNI();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.ValueProp != true)
@@ -305,7 +307,7 @@ namespace DataMapperTest
 		{
 			TesterRefProp tester = new TesterRefProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.RefProp != "Hey!")
@@ -322,7 +324,7 @@ namespace DataMapperTest
 		{
 			TesterStructProp tester = new TesterStructProp();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.StructProp != _CurrentDate)
@@ -339,7 +341,7 @@ namespace DataMapperTest
 		{
 			TesterAllSub tester = new TesterAllSub();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			DataMapper.Default.GeneratedFileName = "gen.dll";
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
@@ -375,7 +377,7 @@ namespace DataMapperTest
 		{
 			TesterAll tester = new TesterAll();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 
 
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
@@ -428,7 +430,7 @@ namespace DataMapperTest
 		public void FillObjectsTest()
 		{
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 
 			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
 			DataMapper.Default.FillObjectList<TesterAll>(objs, _DateTable.Rows);

@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" 
+           elementFormDefault="qualified" 
+           xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="MappingDefinition">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element minOccurs="1" maxOccurs="unbounded" name="TypeMapping">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element minOccurs="0" maxOccurs="unbounded" name="RefKey">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element minOccurs="1" maxOccurs="unbounded" name="Column">
+                      <xs:complexType>
+                        <xs:attribute name="name" type="xs:string" use="required" />
+                        <xs:attribute name="foreignName" type="xs:string" use="optional" />
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                  <xs:attribute name="key" type="xs:string" use="required" />
+                  <xs:attribute name="tableName" type="xs:string" use="optional" />
+                  <xs:attribute name="tableIx" type="xs:string" use="optional" />
+                </xs:complexType>
+              </xs:element>
+              <xs:element minOccurs="1" maxOccurs="unbounded" name="PropetyMapping">
+                <xs:complexType>
+                  <xs:attribute name="propertyName" type="xs:string" use="required" />
+                  <xs:attribute name="dataColumnName" type="xs:string" use="optional" />
+                  <xs:attribute name="complex" type="xs:string" use="optional" />
+                  <xs:attribute name="dataRelationName" type="xs:string" use="optional" />
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="typeName" type="xs:string" use="required" />
+            <xs:attribute name="schemeId" type="xs:unsignedByte" use="optional" />
+            <xs:attribute name="tableName" type="xs:string" use="optional" />
+            <xs:attribute name="tableIx" type="xs:string" use="optional" />
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

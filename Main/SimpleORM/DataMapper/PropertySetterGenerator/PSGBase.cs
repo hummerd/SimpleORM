@@ -31,30 +31,44 @@ namespace SimpleORM.PropertySetterGenerator
 
 
 
-		public void GenerateMethodHeader(ILGenerator ilOut)
+		public void GenerateMethodHeader(ILGenerator ilOut, int methodIndex)
 		{
 			ilOut.DeclareLocal(typeof(object));
 			ilOut.DeclareLocal(typeof(int));
 			ilOut.DeclareLocal(typeof(bool));
+
 			ilOut.Emit(OpCodes.Ldc_I4_0);
 			ilOut.Emit(OpCodes.Stloc_2);
+
+			ilOut.Emit(OpCodes.Ldarg, 5);
+			ilOut.Emit(OpCodes.Ldc_I4, methodIndex);
+			ilOut.Emit(OpCodes.Ldarg_0);
+			ilOut.Emit(OpCodes.Stelem_Ref);
 		}
 
 		public void GenerateExtractComplex(
 			ILGenerator ilOut,
 			PropertyInfo prop,
 			Type subType,
-			MethodInfo subExtract)
+			MethodInfo subExtract,
+			int subExtractMethodIndex)
 		{
 			#region Algorithm
-			//PropType obj = mt.Prop1;
-			//if (obj == null)
+			//if (done[ix] != null)
 			//{
-			//   obj = (PropType)mapper.ObjectBuilder.CreateObject(typeof(PropType));
-			//   mt.Prop1 = obj;
+			//	mt.Prop1 = done[ix];
 			//}
-			//
-			//FillerMethod(obj, data, mapper, columnsXX, colIx);
+			//else
+			//{
+				//PropType obj = mt.Prop1;
+				//if (obj == null)
+				//{
+				//   obj = (PropType)mapper.ObjectBuilder.CreateObject(typeof(PropType));
+				//   mt.Prop1 = obj;
+				//}
+				//
+				//FillerMethod(obj, data, mapper, columnsXX, colIx);
+			//}
 			#endregion
 
 			//ilGen.Emit(OpCodes.Ldarg, 4);
@@ -82,7 +96,25 @@ namespace SimpleORM.PropertySetterGenerator
 			//L_001e: ret 
 
 			LocalBuilder locPropValue = ilOut.DeclareLocal(subType);
+			LocalBuilder locObjCreated = ilOut.DeclareLocal(typeof(object));
 			Label lblAfterIf = ilOut.DefineLabel();
+			Label lblAfterAll = ilOut.DefineLabel();
+			Label lblCallExtract = ilOut.DefineLabel();
+
+			ilOut.Emit(OpCodes.Ldarg, 5);
+			ilOut.Emit(OpCodes.Ldc_I4, subExtractMethodIndex);
+			ilOut.Emit(OpCodes.Ldelem_Ref);
+			ilOut.Emit(OpCodes.Stloc, locObjCreated);
+			ilOut.Emit(OpCodes.Ldloc, locObjCreated);
+			ilOut.Emit(OpCodes.Brfalse, lblCallExtract);
+
+			ilOut.Emit(OpCodes.Ldarg_0);
+			ilOut.Emit(OpCodes.Ldloc, locObjCreated);
+			ilOut.Emit(OpCodes.Castclass, subType);
+			ilOut.Emit(OpCodes.Callvirt, prop.GetSetMethod());
+			ilOut.Emit(OpCodes.Br, lblAfterAll);
+
+			ilOut.MarkLabel(lblCallExtract);
 
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Callvirt, prop.GetGetMethod());
@@ -124,9 +156,12 @@ namespace SimpleORM.PropertySetterGenerator
 			ilOut.Emit(OpCodes.Ldarg_2);
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg, 4);
+			ilOut.Emit(OpCodes.Ldarg, 5);
 
 			ilOut.Emit(OpCodes.Call, subExtract); // extract
 			ilOut.Emit(OpCodes.Pop);
+
+			ilOut.MarkLabel(lblAfterAll);
 		}
 
 

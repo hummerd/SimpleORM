@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SimpleORM.Attributes
 {
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+	[AttributeUsage(AttributeTargets.All, AllowMultiple = true)]
 	public class DataRelationMapAttribute : DataMapAttribute
 	{
 		protected int _NestedSchemeId = 0;

@@ -21,7 +21,7 @@ namespace SimpleORM
 		Type DataSourceType
 		{ get; }
 
-		void GenerateMethodHeader(ILGenerator ilOut);
+		void GenerateMethodHeader(ILGenerator ilOut, int methodIndex);
 
 		void CreateExtractScalar(
 			ILGenerator ilOut,
@@ -42,6 +42,7 @@ namespace SimpleORM
 			ILGenerator ilOut,
 			PropertyInfo prop,
 			Type subType,
-			MethodInfo subExtract);
+			MethodInfo subExtract,
+			int subExtractMethodIndex);
 	}
 }

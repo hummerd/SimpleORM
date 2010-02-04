@@ -62,14 +62,18 @@
     <Compile Include="Attributes\ComplexDataMapAttribute.cs" />
     <Compile Include="Attributes\DataColumnMapAttribute.cs" />
     <Compile Include="Attributes\DataMapAttribute.cs" />
+    <Compile Include="Attributes\DataRelatedToMapAttribute.cs" />
+    <Compile Include="Attributes\DataRelationColumnMapAttribute.cs" />
     <Compile Include="Attributes\DataRelationMapAttribute.cs" />
+    <Compile Include="Attributes\TableMapAttribute.cs" />
     <Compile Include="DataMapper.cs" />
-    <Compile Include="Delegates.cs" />
     <Compile Include="Exception\DataMapperException.cs" />
-    <Compile Include="ExtractInfo.cs" />
+    <Compile Include="MappingDataProvider\ExtractInfo.cs" />
     <Compile Include="IObjectBuilder.cs" />
-    <Compile Include="KeyInfo.cs" />
-    <Compile Include="KeyObjectIndex.cs" />
+    <Compile Include="MappingDataProvider\KeyInfo.cs" />
+    <Compile Include="MappingDataProvider\AttMappingDataProvider.cs" />
+    <Compile Include="MappingDataProvider\IMappingDataProvider.cs" />
+    <Compile Include="MappingDataProvider\MappingDataProviderBase.cs" />
     <Compile Include="PropertySetterGenerator\DataMapperCodeGenerator.cs" />
     <Compile Include="PropertySetterGenerator\ExtractorInfoCache.cs" />
     <Compile Include="PropertySetterGenerator\IPropertySetterGenerator.cs" />
@@ -77,11 +81,13 @@
     <Compile Include="PropertySetterGenerator\DataTablePSG.cs" />
     <Compile Include="PropertySetterGenerator\DataReaderPSG.cs" />
     <Compile Include="PropertySetterGenerator\KeyClassGenerator.cs" />
-    <Compile Include="PropertySetterGenerator\LinkedKeyCache.cs" />
+    <Compile Include="MappingDataProvider\MappingDataProvider.cs" />
+    <Compile Include="PropertySetterGenerator\MemberMapInfo.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />
-    <Compile Include="PropertySetterGenerator\ReflectHelper.cs" />
-    <Compile Include="RefInfo.cs" />
-    <Compile Include="StandartObjectBuilder.cs" />
+    <Compile Include="MappingDataProvider\XmlMappingDataProvider.cs" />
+    <Compile Include="MappingDataProvider\RefInfo.cs" />
+    <Compile Include="ReflectionHelper.cs" />
+    <Compile Include="MappingGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
@@ -99,6 +105,9 @@
       <ProductName>.NET Framework 3.5</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="MappingXml.xsd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

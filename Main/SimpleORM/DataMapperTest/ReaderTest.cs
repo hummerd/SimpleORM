@@ -210,13 +210,14 @@ namespace DataMapperTest
 		public void FillObjectsReaderNestedTest()
 		{
 			DataMapper.Default.ClearCache();
+			//DataMapper.Default.GeneratedFileName = "ng.dll";
 			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\data.mapping");
 
 			List<TesterAll> objs = new List<TesterAll>();
 
 			var reader = _DataSet.CreateDataReader();
 			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0);
-
+			//DataMapper.Default.SaveGeneratedAsm();
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||
 				 objs[0].RefProp != "Hey!" ||
@@ -262,7 +263,7 @@ namespace DataMapperTest
 		public void FillObjectsReaderTest()
 		{
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 
 			List<TesterAll> objs = new List<TesterAll>();
 
@@ -318,7 +319,7 @@ namespace DataMapperTest
 		public void FillObjectReaderTest()
 		{
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 
 			TesterAll result = new TesterAll();
 			var reader = _DataSet.CreateDataReader();
@@ -426,7 +427,7 @@ namespace DataMapperTest
 		{
 			TesterAllSub tester = new TesterAllSub();
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(null);
+			DataMapper.Default.SetConfig(String.Empty);
 			var reader = _DataSet.CreateDataReader();
 			reader.Read();
 			DataMapper.Default.FillObject(reader, tester, 0);
