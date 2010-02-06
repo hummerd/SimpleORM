@@ -52,9 +52,10 @@ namespace SimpleORM.PropertySetterGenerator
 		public ExtractInfo GenerateSetterMethod(
 			ExtractInfo extractInfo, 
 			DataTable dtSource, 
-			Type generatorSourceType)
+			Type generatorSourceType,
+			bool createNamespace)
 		{
-			return GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, 0);
+			return GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, 0, createNamespace);
 		}
 
 
@@ -69,21 +70,19 @@ namespace SimpleORM.PropertySetterGenerator
 			ExtractInfo extractInfo, 
 			DataTable dtSource, 
 			Type generatorSourceType, 
-			int extractLevel)
+			int extractLevel,
+			bool createNamespace)
 		{
 			//Method alredy exists
 			if (extractInfo.FillMethod.ContainsKey(generatorSourceType))
 				return extractInfo;
 
-			Debug.WriteLine(string.Format(
-				new String('\t', extractLevel) + "Creating method for {0}, source {1}",
-				extractInfo,
-				generatorSourceType.Name));
+			WriteDebugCreate(extractInfo, extractLevel, generatorSourceType);
 
 			IPropertySetterGenerator methodGenerator = _SetterGenerators[generatorSourceType];
 
 			//Generating Type and method declaration
-			TypeBuilder typeBuilder = CreateAssemblyType(extractInfo.TargetType, extractInfo.SchemeId, generatorSourceType);
+			TypeBuilder typeBuilder = CreateAssemblyType(extractInfo.TargetType, extractInfo.SchemeId, generatorSourceType, createNamespace);
 			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(
 				extractInfo.TargetType, typeBuilder, methodGenerator.DataSourceType);
 
@@ -99,7 +98,8 @@ namespace SimpleORM.PropertySetterGenerator
 					item.RelatedExtractInfo,
 					dtSource,
 					generatorSourceType,
-					extractLevel + 1
+					extractLevel + 1,
+					true
 					);
 			}
 
@@ -107,21 +107,10 @@ namespace SimpleORM.PropertySetterGenerator
 			GenerateSetterMethod(ilGen, methodGenerator, extractInfo, dtSource, extractLevel);
 
 			Type type = typeBuilder.CreateType();
-
-			//if (extractInfo.FillMethod.ContainsKey(methodGenerator.DataSourceType))
-			//    throw new DataMapperException(String.Format(
-			//        "Method for type {0}, scheme {1}, source {2} generated once again.",
-			//        extractInfo.TargetType,
-			//        extractInfo.SchemeId,
-			//        methodGenerator.DataSourceType
-			//        ));
-
 			extractInfo.FillMethod[methodGenerator.DataSourceType] =
 				type.GetMethod("SetProps_" + extractInfo.TargetType);
 
-			Debug.WriteLine(string.Format(
-				new String('\t', extractLevel) + "Done with creating method for {0}",
-				extractInfo));
+			WriteDebugDone(extractInfo, extractLevel);
 
 			return extractInfo;
 		}
@@ -150,21 +139,19 @@ namespace SimpleORM.PropertySetterGenerator
 				int columnIx = dtSource.Columns.IndexOf(mei.MapName);
 				if (columnIx < 0)
 				{
-					Debug.WriteLine(string.Format(
-						"Warning! Column {0} that was defined in mapping does not exists. No mapping code will be generated for member {1}",
-						mei.MapName,
-						mei.Member.Name));
-					propIx++;
-					continue;
+					//Debug.WriteLine(string.Format(
+					//    "Warning! Column {0} that was defined in mapping does not exists. No mapping code will be generated for member {1}",
+					//    mei.MapName,
+					//    mei.Member.Name));
+					//propIx++;
+					//continue;
+					throw new DataMapperException(
+						string.Format(
+							"Column {0} that was defined in mapping does not exists. Try to use another mapping schema.",
+							mei.MapName));
 				}
 
-				Debug.WriteLine(string.Format(
-					new String('\t', extractLevel) + "\tGenerating code that fills member {0}, index {1} with source type {2}",
-					mei.Member,
-					propIx,
-					dtSource.Columns[columnIx].DataType
-					));
-
+				WriteDebugGenerateSetter(extractLevel, mei, propIx, dtSource, columnIx);
 				methodGenerator.CreateExtractScalar(
 					ilGen,
 					mei.Member as PropertyInfo,
@@ -176,12 +163,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			foreach (RelationExtractInfo rei in extractInfo.ChildTypes)
 			{
-				Debug.WriteLine(string.Format(
-					new String('\t', extractLevel) + "\tGenerating code that fills member {0} with child {1}",
-					rei.Member,
-					rei.RelatedExtractInfo.TargetType
-					));
-
+				WriteDebugGenerateFillChildren(extractLevel, rei);
 				methodGenerator.CreateExtractNested(
 					ilGen,
 					rei.Member as PropertyInfo,
@@ -193,6 +175,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 			foreach (RelationExtractInfo rei in extractInfo.SubTypes)
 			{
+				WriteDebugGenerateFillChildren(extractLevel, rei);
 				methodGenerator.GenerateExtractComplex(
 					ilGen,
 					rei.Member as PropertyInfo,
@@ -214,13 +197,17 @@ namespace SimpleORM.PropertySetterGenerator
 		protected TypeBuilder CreateAssemblyType(
 			Type targetClassType,
 			int schemeId,
-			Type generatorSourceType)
+			Type generatorSourceType,
+			bool createNamespace)
 		{
 			string prefix = "DataPropertySetter.";
 			if (targetClassType.FullName.StartsWith(prefix))
 				prefix = String.Empty;
 
-			string className = prefix + targetClassType.FullName + "." + generatorSourceType.Name + "_" + schemeId;
+			string className = 
+				prefix + 
+				targetClassType.FullName + (createNamespace ? "." : "_") + 
+				generatorSourceType.Name + "_" + schemeId;
 			string newClassName = className;
 			int i = 0;
 			while (_ModuleBuilder.GetType(newClassName) != null)
@@ -249,7 +236,8 @@ namespace SimpleORM.PropertySetterGenerator
 					dataSourceType, 
 					typeof(DataMapper),
 					typeof(List<List<int>>), 
-					Type.GetType("System.Int32&"),
+					typeof(int).MakeByRefType(),
+					//Type.GetType("System.Int32&"),
 					typeof(object[])
 				});
 
@@ -261,6 +249,45 @@ namespace SimpleORM.PropertySetterGenerator
 			methodBuilder.DefineParameter(6, ParameterAttributes.In, "createdObjects");
 
 			return methodBuilder;
+		}
+
+
+		[Conditional("DEBUG")]
+		protected void WriteDebugCreate(ExtractInfo extractInfo, int extractLevel, Type generatorSourceType)
+		{
+			Debug.WriteLine(string.Format(
+				new String('\t', extractLevel) + "Creating method for {0}, source {1}",
+				extractInfo,
+				generatorSourceType.Name));
+		}
+
+		[Conditional("DEBUG")]
+		protected void WriteDebugDone(ExtractInfo extractInfo, int extractLevel)
+		{
+			Debug.WriteLine(string.Format(
+				new String('\t', extractLevel) + "Done with creating method for {0}",
+				extractInfo));
+		}
+
+		[Conditional("DEBUG")]
+		protected void WriteDebugGenerateSetter(int extractLevel, MemberExtractInfo mei, int propIx, DataTable dtSource, int columnIx)
+		{
+			Debug.WriteLine(string.Format(
+				new String('\t', extractLevel) + "\tGenerating code that fills member {0}, index {1} with source type {2}",
+				mei.Member,
+				propIx,
+				dtSource.Columns[columnIx].DataType
+				));
+		}
+
+		[Conditional("DEBUG")]
+		protected void WriteDebugGenerateFillChildren(int extractLevel, RelationExtractInfo rei)
+		{
+			Debug.WriteLine(string.Format(
+				new String('\t', extractLevel) + "\tGenerating code that fills member {0} with child {1}",
+				rei.Member,
+				rei.RelatedExtractInfo.TargetType
+				));
 		}
 	}
 }

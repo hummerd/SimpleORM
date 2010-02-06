@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using SimpleORM.Attributes;
+using System.Collections.ObjectModel;
 
 
 namespace DataMapperTest
@@ -16,6 +17,17 @@ namespace DataMapperTest
 	{
 		public int Id { get; set; }
 		public string Name { get; set; }
+	}
+
+	[TableMap(new int[] {0})]
+	public class Node : Entity
+	{
+		[ComplexDataMap]
+		public EntityType EntityType { get; set; }
+
+		[DataRelationMap("NodeNode")]
+		[DataRelationColumnMap("Id", "ParentId")]
+		public Collection<Node> Children { get; set; }
 	}
 
 	public class Parent : Entity
@@ -50,7 +62,7 @@ namespace DataMapperTest
 
 		[DataRelationMap("Child2Child")]
 		[DataRelationColumnMap("Id", "ParentId")]
-		public List<Child2Child> Childs2 { get; set; }
+		public Collection<Child2Child> Childs2 { get; set; }
 	}
 
 	[DataRelatedToMap(typeof(Child2))]

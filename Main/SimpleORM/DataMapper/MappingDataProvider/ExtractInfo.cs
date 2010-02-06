@@ -12,6 +12,7 @@ namespace SimpleORM
 	/// </summary>
 	public class ExtractInfo : ICloneable
 	{
+		protected MethodInfo					_LinkMethod;
 		protected Type							_TargetType;
 		protected int							_SchemeId;
 		protected Dictionary<Type, MethodInfo>	_FillMethod;
@@ -37,7 +38,19 @@ namespace SimpleORM
 			_ChildTypes = new List<RelationExtractInfo>();
 		}
 
-		
+
+		public MethodInfo LinkMethod
+		{
+			get
+			{
+				return _LinkMethod;
+			}
+			set
+			{
+				_LinkMethod = value;
+			}
+		}
+
 		public Type TargetType
 		{
 			get

@@ -112,13 +112,15 @@ namespace DataMapperTest
 			dtPerfTest.Columns.Add(new DataColumn("Field2", typeof(string)));
 			dtPerfTest.Columns.Add(new DataColumn("Field3", typeof(DateTime)));
 
+			dtPerfTest.BeginLoadData();
 			for (int i = 0; i < rowCount; i++)
 				dtPerfTest.Rows.Add(i, i.ToString(), DateTime.Now);
+			dtPerfTest.EndLoadData();
 
 			List<TesterAll> tester = new List<TesterAll>(100000);
 
 			DateTime dtStart = DateTime.Now;
-			DataMapper.Default.FillObjectList<TesterAll>(tester, dtPerfTest.Rows);
+			DataMapper.Default.FillObjectList<TesterAll>(tester, dtPerfTest.Rows, 1);
 			TimeSpan span = DateTime.Now - dtStart;
 
 			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);

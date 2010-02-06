@@ -176,6 +176,7 @@ namespace DataMapperTest
 		}
 
 		private int _ValueProp;
+		[DataColumnMapAttribute("Field1", 1)]
 		[DataColumnMapAttribute("Field1")]
 		public int ValueProp
 		{
@@ -184,6 +185,7 @@ namespace DataMapperTest
 		}
 
 		private bool _ValuePropNI;
+		[DataColumnMapAttribute("Field1", 1)]
 		[DataColumnMapAttribute("Field1")]
 		public virtual bool ValuePropNI
 		{
@@ -192,6 +194,7 @@ namespace DataMapperTest
 		}
 
 		private string _RefProp;
+		[DataColumnMapAttribute("Field2", 1)]
 		[DataColumnMapAttribute("Field2")]
 		public string RefProp
 		{
@@ -200,6 +203,7 @@ namespace DataMapperTest
 		}
 
 		private DateTime _StructProp;
+		[DataColumnMapAttribute("Field3", 1)]
 		[DataColumnMapAttribute("Field3")]
 		public DateTime StructProp
 		{
@@ -208,6 +212,7 @@ namespace DataMapperTest
 		}
 
 		private DateTime? _NullableProp;
+		[DataColumnMapAttribute("Field3", 1)]
 		[DataColumnMapAttribute("Field3")]
 		public DateTime? NullableProp
 		{
@@ -216,6 +221,7 @@ namespace DataMapperTest
 		}
 
 		private bool? _NullablePropBool;
+		[DataColumnMapAttribute("Field1", 1)]
 		[DataColumnMapAttribute("Field1")]
 		public bool? NullablePropBool
 		{
@@ -225,6 +231,7 @@ namespace DataMapperTest
 
 		//string form int
 		private string _StrProp;
+		[DataColumnMapAttribute("Field1", 1)]
 		[DataColumnMapAttribute("Field1")]
 		public string StrProp
 		{
@@ -233,7 +240,7 @@ namespace DataMapperTest
 		}
 
 		private TesterAllList _TesterList;
-		[DataRelationMap("Relation1")]
+		[DataRelationMap("Relation1", 0, 1)]
 		public TesterAllList TesterList
 		{
 			get { return _TesterList; }
@@ -241,7 +248,7 @@ namespace DataMapperTest
 		}
 
 		private TesterAllArrayList _TesterArrayList;
-		[DataRelationMap("Relation1", typeof(TesterAll))]
+		[DataRelationMap("Relation1", 0, 1, typeof(TesterAll))]
 		public TesterAllArrayList TesterArrayList
 		{
 			get { return _TesterArrayList; }

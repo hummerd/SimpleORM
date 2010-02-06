@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SimpleORM.Attributes
 {
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Class, AllowMultiple = true)]
 	public class DataMapAttribute : Attribute
 	{
 		protected int _SchemeId = 0;

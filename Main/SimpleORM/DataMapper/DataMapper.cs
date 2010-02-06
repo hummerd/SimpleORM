@@ -10,6 +10,7 @@ using SimpleORM.PropertySetterGenerator;
 namespace SimpleORM
 {
 	public delegate DataRow DataRowExtractor<T>(T obj);
+	public delegate bool ObjectFilter<T>(T obj, IDataRecord record);
 
 
 	public class DataMapper
@@ -189,7 +190,14 @@ namespace SimpleORM
 			}
 		}
 
+
 		public void FillObjectListComplex<TObject>(IList objectList, IDataReader reader, int schemeId)
+			where TObject : class
+		{
+			FillObjectListComplex<TObject>(objectList, reader, schemeId, null);
+		}
+
+		public void FillObjectListComplex<TObject>(IList objectList, IDataReader reader, int schemeId, ObjectFilter<TObject> filter)
 			where TObject : class
 		{
 			if (objectList == null)
@@ -199,7 +207,7 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill objects from null.", "reader");
 
 			var objectType = typeof(TObject);
-			FillObjectsInternal(reader, objectType, schemeId, objectList);
+			FillObjectsInternal<TObject>(reader, schemeId, objectList, filter);
 		}
 
 
@@ -388,14 +396,14 @@ namespace SimpleORM
 		}
 
 
-		protected void FillObjectsInternal(
+		protected void FillObjectsInternal<TObject>(
 			IDataReader reader,
-			Type objectType,
 			int schemeId,
-			IList objectList)
+			IList objectList,
+			ObjectFilter<TObject> filter)
 		{
 			List<List<int>> columnIndexes = null;
-			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
+			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(typeof(TObject), schemeId);
 
 			Dictionary<ExtractInfo,
 				KeyObjectIndex> tempPrimary = new Dictionary<ExtractInfo, KeyObjectIndex>(); //table name //pk //object
@@ -446,16 +454,31 @@ namespace SimpleORM
 					KeyObjectIndex pkObjects;
 					KeyObjectIndex fkObjects;
 
-					ExtractObjects(
-					   reader,
-					   currentEI.TargetType,
-					   primaryKeys,
-					   foreignKeys,
-					   out pkObjects,
-					   out fkObjects,
-					   columnIndexes,
-					   currentEI == extractInfo ? objectList : null,
-					   extractMethod);
+					if (currentEI == extractInfo)
+					{
+						ExtractPrimaryObjects<TObject>(
+						   reader,
+						   primaryKeys,
+						   foreignKeys,
+						   out pkObjects,
+						   out fkObjects,
+						   columnIndexes,
+						   objectList,
+						   extractMethod,
+						   filter);
+					}
+					else 
+					{
+						ExtractNotPrimaryObjects(
+						   reader,
+						   currentEI.TargetType,
+						   primaryKeys,
+						   foreignKeys,
+						   out pkObjects,
+						   out fkObjects,
+						   columnIndexes,
+						   extractMethod);
+					}
 
 					KeyObjectIndex koi;
 					if (tempPrimary.TryGetValue(currentEI, out koi))
@@ -479,117 +502,102 @@ namespace SimpleORM
 				tableIx++;
 			} while (reader.NextResult());
 
-			LinkObjects(extractInfo, tempPrimary, tempForeign);
+			CallLinkObjects(extractInfo, tempPrimary, tempForeign);
 		}
 
-		protected void ExtractObjects(
+		protected void ExtractPrimaryObjects<TObject>(
 			IDataReader reader,
-			Type targetType,
 			List<KeyInfo> pkInfo,
 			List<KeyInfo> fkInfo,
 			out KeyObjectIndex pkObjects,
 			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
 			IList objectList,
-			MethodInfo method
+			MethodInfo method,
+			ObjectFilter<TObject> filter
 			)
 		{
-			pkObjects = new KeyObjectIndex();
-			fkObjects = new KeyObjectIndex();
+			pkObjects = new KeyObjectIndex(typeof(TObject));
+			fkObjects = new KeyObjectIndex(typeof(TObject));
 
 			do
 			{
-				object obj = _ObjectBuilder.CreateObject(targetType);
+				TObject obj = (TObject)_ObjectBuilder.CreateObject(typeof(TObject));
 				//Fill object
 				CallExtractorMethod(method, obj, reader, columnIndexes);
+				ExtractObjectRelations(reader, obj, typeof(TObject), pkInfo, fkInfo, pkObjects, fkObjects);
 
-				if (pkInfo != null && pkInfo.Count > 0)
-				{
-					for (int i = 0; i < pkInfo.Count; i++)
-					{
-						KeyInfo pki = pkInfo[i];
-						object pk = _ObjectBuilder.CreateObject(pki.ParentKeyExtractInfo.TargetType);
-						bool hasNulls = CallExtractorMethod(pki.GetParentKeyExtractorMethod(), pk, reader, pki.ParentColumnIndexes);
-						pkObjects.AddObject(pk, obj);
-					}
-				}
-
-				if (fkInfo != null && fkInfo.Count > 0)
-				{
-					for (int i = 0; i < fkInfo.Count; i++)
-					{
-						KeyInfo fki = fkInfo[i];
-						object fk = _ObjectBuilder.CreateObject(fki.ChildKeyExtractInfo.TargetType);
-						bool hasNulls = CallExtractorMethod(fki.GetChildKeyExtractorMethod(), fk, reader, fki.ChildColumnIndexes);
-						//according to ansi null comparsion, nothing can be equal to this key
-						if (!hasNulls)
-							fkObjects.AddObject(fk, obj);
-					}
-				}
-
-				if (objectList != null)
+				if (filter == null || filter(obj, reader))
 				{
 					objectList.Add(obj);
 				}
 			} while (reader.Read());
 		}
 
-		protected void LinkObjects(
-			ExtractInfo extractInfo,
-			Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
-			Dictionary<ExtractInfo, KeyObjectIndex> tempForeign)
+		protected void ExtractNotPrimaryObjects(
+			IDataReader reader,
+			Type objectType,
+			List<KeyInfo> pkInfo,
+			List<KeyInfo> fkInfo,
+			out KeyObjectIndex pkObjects,
+			out KeyObjectIndex fkObjects,
+			List<List<int>> columnIndexes,
+			MethodInfo method
+			)
 		{
-			LinkObjects(
-				extractInfo, 
-				tempPrimary,
-				tempForeign,
-				new Dictionary<ExtractInfo ,object>(20)
-				);
+			pkObjects = new KeyObjectIndex(objectType);
+			fkObjects = new KeyObjectIndex(objectType);
+
+			do
+			{
+				object obj = _ObjectBuilder.CreateObject(objectType);
+				//Fill object
+				CallExtractorMethod(method, obj, reader, columnIndexes);
+				ExtractObjectRelations(reader, obj, objectType, pkInfo, fkInfo, pkObjects, fkObjects);
+			} while (reader.Read());
 		}
 
-		protected void LinkObjects(
-			ExtractInfo extractInfo,
-            Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
-            Dictionary<ExtractInfo, KeyObjectIndex> tempForeign,
-			Dictionary<ExtractInfo, object> filled)
+		protected void ExtractObjectRelations(
+			IDataReader reader,
+			object obj,
+			Type objectType,
+			List<KeyInfo> pkInfo,
+			List<KeyInfo> fkInfo,
+			KeyObjectIndex pkObjects,
+			KeyObjectIndex fkObjects
+			)
 		{
-			if (filled.ContainsKey(extractInfo))
-				return;
-
-			filled.Add(extractInfo, null);
-			Dictionary<object, List<object>> pkObjects = tempPrimary[extractInfo];
-
-			for (int i = 0; i < extractInfo.ChildTypes.Count; i++)
+			if (pkInfo != null && pkInfo.Count > 0)
 			{
-				RelationExtractInfo childEI = extractInfo.ChildTypes[i];
-				LinkObjects(childEI.RelatedExtractInfo, tempPrimary, tempForeign, filled);
-
-				Dictionary<object, List<object>> fkObjects = tempForeign[childEI.RelatedExtractInfo];
-
-				foreach (var item in pkObjects)
+				for (int i = 0; i < pkInfo.Count; i++)
 				{
-                    List<object> parentList = item.Value;
-
-					List<object> children;
-					fkObjects.TryGetValue(item.Key, out children);
-					
-                    foreach (var parent in parentList)
-                    {
-						PropertyInfo pi = childEI.Member as PropertyInfo;
-						IList lst = pi.GetValue(parent, null) as IList;
-
-						if (lst == null)
-						{
-							lst = (IList)Activator.CreateInstance(pi.PropertyType);
-							pi.SetValue(parent, lst, null); 
-						}
-
-						if (children != null)
-							for (int k = 0; k < children.Count; k++)
-								lst.Add(children[k]);
-                    }
+					KeyInfo pki = pkInfo[i];
+					object pk = _ObjectBuilder.CreateObject(pki.ParentKeyExtractInfo.TargetType);
+					bool hasNulls = CallExtractorMethod(pki.GetParentKeyExtractorMethod(), pk, reader, pki.ParentColumnIndexes);
+					pkObjects.AddObject(pk, obj);
 				}
 			}
+
+			if (fkInfo != null && fkInfo.Count > 0)
+			{
+				for (int i = 0; i < fkInfo.Count; i++)
+				{
+					KeyInfo fki = fkInfo[i];
+					object fk = _ObjectBuilder.CreateObject(fki.ChildKeyExtractInfo.TargetType);
+					bool hasNulls = CallExtractorMethod(fki.GetChildKeyExtractorMethod(), fk, reader, fki.ChildColumnIndexes);
+					//according to ansi null comparsion, nothing can be equal to this key
+					if (!hasNulls)
+						fkObjects.AddObject(fk, obj);
+				}
+			}		
+		}
+
+		protected void CallLinkObjects(
+			ExtractInfo extractInfo,
+            Dictionary<ExtractInfo, KeyObjectIndex> tempPrimary,
+            Dictionary<ExtractInfo, KeyObjectIndex> tempForeign)
+		{
+			extractInfo.LinkMethod.Invoke(null, new object[] { extractInfo, tempPrimary, tempForeign, new Dictionary<ExtractInfo, object>(20) });
 		}
 
 		protected void FillObjectListInternal<TRowItem>(IList objectList, Type objectType, ICollection dataCollection, int schemeId, DataRowExtractor<TRowItem> rowExtractor, bool clearObjectCache)
@@ -605,7 +613,7 @@ namespace SimpleORM
 				objectType = listType.GetGenericArguments()[0];
 
 			if (objectType == null)
-				throw new ArgumentException("Cannot fill object of unknown type null.", "objectType");
+				throw new ArgumentException("Cannot fill object of unknown type.", "objectType");
 
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
 			MethodInfo extractMethod = null;
@@ -690,30 +698,39 @@ namespace SimpleORM
 		}
 
 
-		public class KeyObjectIndex	: Dictionary<object, List<object>>
+		public class KeyObjectIndex	: Dictionary<object, IList>
 		{
+			protected Type _ListType;
+
+			public KeyObjectIndex(Type objectType)
+			{
+				_ListType = objectType;
+			}
+
 			public void AddObject(object key, object obj)
 			{
-				List<object> list;
+				IList list;
 				if (!TryGetValue(key, out list))
 				{
-					list = new List<object>();
+					list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(_ListType));
 					Add(key, list);
 				}
 
 				list.Add(obj);
 			}
 
-			public void AddRange(object key, IEnumerable<object> obj)
+			public void AddRange(object key, object objList)
 			{
-				List<object> list;
+				IList list;
 				if (!TryGetValue(key, out list))
 				{
-					list = new List<object>();
+					list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(_ListType));
 					Add(key, list);
 				}
 
-				list.AddRange(obj);
+				var m = typeof(List<>).MakeGenericType(_ListType).GetMethod("AddRange");
+				m.Invoke(list, new object[] { objList });
+				//list.AddRange(obj);
 			}
 		}
 

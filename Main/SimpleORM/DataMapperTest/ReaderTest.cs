@@ -16,6 +16,7 @@ namespace DataMapperTest
 		private DataSet _DataSet = new DataSet();
 		private DataSet _Hierarchy = new DataSet();
 		private DateTime _CurrentDate;
+		private DataTable _TreeTable = new DataTable();
 
 
 		public ReaderTest()
@@ -153,6 +154,22 @@ namespace DataMapperTest
 				child2,
 				child2child
 			});
+
+
+			//One table tree
+			_TreeTable = new DataTable();
+			_TreeTable.Columns.Add(new DataColumn("Id", typeof(int)));
+			_TreeTable.Columns.Add(new DataColumn("Name", typeof(string)));
+			_TreeTable.Columns.Add(new DataColumn("EntityTypeId", typeof(int)));
+			_TreeTable.Columns.Add(new DataColumn("EntityTypeName", typeof(string)));
+			_TreeTable.Columns.Add(new DataColumn("ParentId", typeof(int)));
+
+			_TreeTable.Rows.Add(1, "Node1", 1, "Type1", DBNull.Value);
+			_TreeTable.Rows.Add(2, "Node11", 2, "Type2", 0);
+			_TreeTable.Rows.Add(3, "Node2", 1, "Type1", 1);
+			_TreeTable.Rows.Add(4, "Node3", 2, "Type2", 3);
+			_TreeTable.Rows.Add(5, "Node4", 2, "Type2", 3);
+			_TreeTable.Rows.Add(6, "Node5", 1, "Type1", 1);
 		}
 		
 		// Use TestCleanup to run code after each test has run
@@ -163,15 +180,72 @@ namespace DataMapperTest
 
 
 		[TestMethod]
+		public void ReaderTreeTest()
+		{
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			var reader = _TreeTable.CreateDataReader();
+
+			List<Node> objs = new List<Node>();
+			DataMapper.Default.FillObjectListComplex<Node>(objs, reader, 0, (n, r) => r.IsDBNull(4) || r.GetInt32(4) == 0);
+
+			if (objs.Count != 2)
+				Assert.Fail("ReaderTreeTest fails.");
+
+			if (objs[0].EntityType == null ||
+				objs[0].Children.Count != 2 ||
+				objs[1].Children.Count != 0 ||
+				objs[0].Children[0].Children.Count != 2 ||
+				objs[0].Children[0].Children[0].EntityType == null ||
+				objs[0].Children[0].EntityType == null
+				)
+				Assert.Fail("HierarchyTest fails.");
+		}
+
+		[TestMethod]
+		public void ReaderPerformanseTest()
+		{
+			int rowCount = 100000;
+
+			DataTable dtPerfTest = new DataTable();
+			dtPerfTest.Columns.Add(new DataColumn("Field1", typeof(int)));
+			dtPerfTest.Columns.Add(new DataColumn("Field2", typeof(string)));
+			dtPerfTest.Columns.Add(new DataColumn("Field3", typeof(DateTime)));
+
+			dtPerfTest.BeginLoadData();
+			for (int i = 0; i < rowCount; i++)
+				dtPerfTest.Rows.Add(i, i.ToString(), DateTime.Now);
+			dtPerfTest.EndLoadData();
+			List<TesterAll> tester = new List<TesterAll>(100000);
+			var reader = dtPerfTest.CreateDataReader();
+
+			DateTime dtStart = DateTime.Now;
+			DataMapper.Default.FillObjectList<TesterAll>(tester, reader, new DBConnMock(), 1, true);
+			TimeSpan span = DateTime.Now - dtStart;
+
+			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);
+			testContextInstance.WriteLine("Time for creation of one object is: " + new TimeSpan(span.Ticks / rowCount));
+		}
+
+		[TestMethod]
 		public void FillObjectListComplexReaderTest()
 		{
 			DataMapper.Default.ClearCache();
+			DataMapper.Default.GeneratedFileName = "mg.dll";
 			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\hierarchy.mapping");
 
 			List<Parent> objs = new List<Parent>();
 
 			var reader = _Hierarchy.CreateDataReader();
-			DataMapper.Default.FillObjectListComplex<Parent>(objs, reader, 0);
+
+			try
+			{
+				DataMapper.Default.FillObjectListComplex<Parent>(objs, reader, 0);
+			}
+			finally
+			{
+				DataMapper.Default.SaveGeneratedAsm();
+			}
 			reader.Close();
 
 			if (objs[0].Id != 1  ||

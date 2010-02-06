@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using SimpleORM.Exception;
@@ -21,6 +22,7 @@ namespace SimpleORM
 		protected MappingProvider _MappingProvider;
 		protected DataMapperCodeGenerator _SetterMethodGenerator;
 		protected KeyClassGenerator _KeyGenerator;
+		protected LinkObjectsMethodGenerator _LinkMethodGenerator;
 		Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
 
 
@@ -82,10 +84,25 @@ namespace SimpleORM
 			_ModuleBuilder = null;
 		}
 
-		public ExtractInfo CreateExtractInfoWithMethod(Type targetClassType, int schemeId, DataTable dtSource, Type generatorSourceType)
+
+		public ExtractInfo CreateExtractInfoWithMethod(
+			Type targetClassType,
+			int schemeId,
+			DataTable dtSource,
+			Type generatorSourceType)
+		{
+			return CreateExtractInfoWithMethod(targetClassType, schemeId, dtSource, generatorSourceType, true);
+		}
+
+		public ExtractInfo CreateExtractInfoWithMethod(
+			Type targetClassType, 
+			int schemeId, 
+			DataTable dtSource, 
+			Type generatorSourceType, 
+			bool createNamespace)
 		{
 			ExtractInfo result = CreateExtractInfo(targetClassType, schemeId);
-			GenerateSetterMethod(result, dtSource, generatorSourceType);
+			GenerateSetterMethod(result, dtSource, generatorSourceType, createNamespace);
 			return result;
 		}
 
@@ -95,18 +112,39 @@ namespace SimpleORM
 		}
 
 		/// <summary>
+		/// Generates setter method using extractInfo.
+		/// </summary>
+		/// <param name="targetClassType"></param>
+		/// <param name="schemeId"></param>
+		/// <param name="dtSource"></param>
+		/// <returns></returns>
+		public ExtractInfo GenerateSetterMethod(
+			ExtractInfo extractInfo,
+			DataTable dtSource,
+			Type generatorSourceType)
+		{
+			return GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, true);
+		}
+
+		/// <summary>
 		/// Generates setter method using xml config or type metadata (attributes).
 		/// </summary>
 		/// <param name="targetClassType"></param>
 		/// <param name="schemeId"></param>
 		/// <param name="dtSource"></param>
 		/// <returns></returns>
-		public ExtractInfo GenerateSetterMethod(ExtractInfo extractInfo, DataTable dtSource, Type generatorSourceType)
+		public ExtractInfo GenerateSetterMethod(
+			ExtractInfo extractInfo, 
+			DataTable dtSource, 
+			Type generatorSourceType,
+			bool createNamespace)
 		{
 			CreateModule();
-			_SetterMethodGenerator.GenerateSetterMethod(extractInfo, dtSource, generatorSourceType);
+			_SetterMethodGenerator.GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, createNamespace);
 			GenerateKeys(extractInfo, dtSource, generatorSourceType, true);
 			GenerateKeys(extractInfo, dtSource, generatorSourceType, false);
+			if (extractInfo.ChildTypes.Count > 0)
+				_LinkMethodGenerator.GenerateLinkMethod(extractInfo, createNamespace);
 
 			return extractInfo;
 		}
@@ -130,6 +168,7 @@ namespace SimpleORM
 
 			_KeyGenerator = new KeyClassGenerator(_ModuleBuilder);
 			_SetterMethodGenerator = new DataMapperCodeGenerator(_SetterGenerators, _ModuleBuilder);
+			_LinkMethodGenerator = new LinkObjectsMethodGenerator(_ModuleBuilder);
 		}
 
 		protected ExtractInfo CreateExtractInfo(Type targetClassType, int schemeId, int extractLevel)
@@ -174,6 +213,8 @@ namespace SimpleORM
 				}
 			}
 
+			DumpExtractInfo(result, extractLevel);
+
 			//fill child types (recursive)
 			foreach (var item in result.SubTypes)
 			{
@@ -208,21 +249,6 @@ namespace SimpleORM
 						}
 					}
 				}
-
-				//foreach (var ei in allEI)
-				//{
-				//    foreach (var ei2 in allEI)
-				//    {
-
-				//    }
-				//    foreach (var rei in ei.ChildTypes)
-				//    {
-				//        if (rei.RelatedExtractInfo.TargetType == targetClassType)
-				//        {
-				//            result.RelationsFromParent.Add(rei);
-				//        }
-				//    }
-				//}
 			}
 
 			return result;
@@ -266,7 +292,8 @@ namespace SimpleORM
 				keyType,
 				schemeId,
 				dtSource,
-				generatorSourceType
+				generatorSourceType,
+				false
 				);
 			
 			ExtractInfo foreignExtractInfo = primaryExtractInfo.Copy();
@@ -278,6 +305,48 @@ namespace SimpleORM
 			keyInfo.ChildKeyExtractInfo = foreignExtractInfo;
 
 			return;
+		}
+
+
+		[Conditional("DEBUG")]
+		protected void DumpExtractInfo(ExtractInfo extractInfo, int extractLevel)
+		{
+			Debug.WriteLine(string.Format(
+				new string('\t', extractLevel) + "Creating {0}",
+				extractInfo));
+
+			foreach (var item in extractInfo.MemberColumns)
+			{
+				Debug.WriteLine(string.Format(
+					new string('\t', extractLevel) + "\tMap {0} {1,-25} to column {2}",
+					item.Member.MemberType,
+					item.Member.Name,
+					item.MapName
+					));
+			}
+
+			foreach (var item in extractInfo.ChildTypes)
+			{
+				Debug.WriteLine(string.Format(
+					new string('\t', extractLevel) + "\tMap property {0,-25} to relation {1} (collection of {2})",
+					item.Member.Name,
+					item.MapName,
+					item.RelatedExtractInfo.TargetType
+					));
+			}
+
+			foreach (var item in extractInfo.SubTypes)
+			{
+				Debug.WriteLine(string.Format(
+					new string('\t', extractLevel) + "\tMap property {0,-25} to complex tpye {1}",
+					item.Member.Name,
+					item.RelatedExtractInfo.TargetType
+					));
+			}
+	
+			Debug.WriteLine(string.Format(
+				new string('\t', extractLevel) + "Done with creating {0}",
+				extractInfo));
 		}
 	}
 }

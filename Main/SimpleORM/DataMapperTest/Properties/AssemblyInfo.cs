@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("DataMapperTest")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Mediatel")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("DataMapperTest")]
-[assembly: AssemblyCopyright("Copyright © Mediatel 2008")]
+[assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

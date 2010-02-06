@@ -82,6 +82,7 @@
     <Compile Include="PropertySetterGenerator\DataReaderPSG.cs" />
     <Compile Include="PropertySetterGenerator\KeyClassGenerator.cs" />
     <Compile Include="MappingDataProvider\MappingDataProvider.cs" />
+    <Compile Include="PropertySetterGenerator\LinkObjectsMethodGenerator.cs" />
     <Compile Include="PropertySetterGenerator\MemberMapInfo.cs" />
     <Compile Include="PropertySetterGenerator\PSGBase.cs" />
     <Compile Include="MappingDataProvider\XmlMappingDataProvider.cs" />
