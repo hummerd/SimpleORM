@@ -9,14 +9,24 @@ namespace DataMapperTest
 {
 	public class Entity
 	{
+		[DataColumnMap("Id")]
 		public int Id { get; set; }
+		[DataColumnMap("Name")]
 		public string Name { get; set; }
 	}
 
 	public class EntityType
 	{
+		[DataColumnMap("EntityTypeId")]
 		public int Id { get; set; }
+		[DataColumnMap("EntityTypeName")]
 		public string Name { get; set; }
+	}
+
+	public class SelfRef : Entity
+	{
+		[ComplexDataMap]
+		public SelfRef Self { get; set; }
 	}
 
 	[TableMap(new int[] {0})]

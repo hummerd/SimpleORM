@@ -39,7 +39,7 @@ namespace SimpleORM.MappingDataProvider
 				{
 					result = true;
 					extractInfo.MemberColumns.Add(
-						new MemberExtractInfo(columnMap.MappingName, member));
+						new MemberExtractInfo(string.IsNullOrEmpty(columnMap.MappingName) ? member.Name : columnMap.MappingName, member));
 				}
 
 				ComplexDataMapAttribute complexMap = att as ComplexDataMapAttribute;

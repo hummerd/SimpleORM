@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<MappingDefinition>
+
+  <TypeMapping typeName="Samples, Samples.Entity.Customer" tableIx="0">
+    <RefKey key="CUSTOMER_TO_ORDER">
+      <Column name="ID" foreignName="ParentID"/>
+    </RefKey>
+    
+    <PropetyMapping propertyName="CustomerId" dataColumnName="ID"/>
+    <PropetyMapping propertyName="CustomerName"/>
+    <PropetyMapping propertyName="Orders" dataRelationName="CUSTOMER_TO_ORDER" nestedItemType="Samples, Samples.Entity.Order"/>
+  </TypeMapping>
+
+  <TypeMapping typeName="Samples, Samples.Entity.Order" schemeId="0" tableIx="1">
+    <PropetyMapping propertyName="OrderId" dataColumnName="ID"/>
+    <PropetyMapping propertyName="OrderDate"/>
+  </TypeMapping>
+  
+</MappingDefinition>

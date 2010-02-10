@@ -4,17 +4,110 @@ using System.Collections.Generic;
 using System.Data;
 using SimpleORM;
 using SimpleORM.Attributes;
+using Samples.Entity;
 
 
 namespace Samples
 {
 	class Program
 	{
+		private static DataMapper attMapper = new DataMapper();
+		private static DataMapper xmlMapper = new DataMapper(
+			new List<string> { @"..\..\customer.mapping", @"..\..\node.mapping" });
+
+
 		static void Main(string[] args)
 		{
-			DataSet dsTest = new DataSet();
+			DataSetToCustomersWithOrders();
+			DataReaderToCustomersWithOrders();
+			DataReaderToTree();
+			DataTableToTree();
 
-			DataTable dtCustomers = dsTest.Tables.Add("Customers");
+			Console.Read();
+		}
+
+
+		private static void DataSetToCustomersWithOrders()
+		{
+			Console.WriteLine("DataSetToCustomersWithOrders");
+
+			DataSet dataSet = LoadCustomerDataSet();
+			//when working with dataset you must create parent\child relations manually
+			dataSet.Relations.Add("CUSTOMER_TO_ORDER",
+				dataSet.Tables["Customers"].Columns["ID"],
+				dataSet.Tables["Orders"].Columns["ParentID"],
+				false);
+
+			List<Customer> customers = new List<Customer>();
+			attMapper.FillObjectList<Customer>(dataSet.Tables["Customers"].Rows, customers);
+			foreach (var item in customers)
+			{
+				Console.WriteLine(item);
+			}
+		}
+
+		private static void DataReaderToCustomersWithOrders()
+		{
+			Console.WriteLine("DataReaderToCustomersWithOrders");
+
+			IDataReader reader = LoadCustomerDataReader();
+
+			List<Customer> customers = new List<Customer>();
+			//note: Some overloads of this method closes reader and some do not
+			xmlMapper.FillObjectListComplex<Customer>(reader, customers);
+			reader.Close();
+
+			foreach (var item in customers)
+			{
+				Console.WriteLine(item);
+			}
+		}
+
+		private static void DataTableToTree()
+		{
+			Console.WriteLine("DataTableToTree");
+			DataTable dtNodes = LoadNodeDataTable();
+
+			DataSet parent = new DataSet();
+			parent.Tables.Add(dtNodes);
+			parent.Relations.Add(new DataRelation(
+				"NodeNode",
+				dtNodes.Columns["Id"],
+				dtNodes.Columns["ParentId"]
+				));
+
+			//Filter data table to have only top level nodes in tree collection
+			DataView dvParents = new DataView(dtNodes);
+			dvParents.RowFilter = "ParentId is null";
+
+			List<Node> tree = new List<Node>();
+			attMapper.FillObjectList<Node>(dvParents, tree);
+			Console.WriteLine(tree[0].ToString());
+		}
+
+		private static void DataReaderToTree()
+		{
+			Console.WriteLine("DataReaderToTree");
+			IDataReader drNodes = LoadNodeDataReader();
+
+			List<Node> tree = new List<Node>();
+			xmlMapper.FillObjectListComplex<Node>(drNodes, tree, 0, null, true,
+				//This filter allow only top level nodes appear in tree collection
+				(r, n) => r.IsDBNull(2));
+			Console.WriteLine(tree[0].ToString());
+		}
+
+
+		private static IDataReader LoadCustomerDataReader()
+		{
+			return LoadCustomerDataSet().CreateDataReader();
+		}
+
+		private static DataSet LoadCustomerDataSet()
+		{
+			DataSet result = new DataSet();
+
+			DataTable dtCustomers = result.Tables.Add("Customers");
 			dtCustomers.Columns.Add(new DataColumn("ID", typeof(int)));
 			dtCustomers.Columns.Add(new DataColumn("CustomerName", typeof(string)));
 
@@ -23,7 +116,7 @@ namespace Samples
 			dtCustomers.Rows.Add(21, "Mike");
 			dtCustomers.Rows.Add(DBNull.Value, DBNull.Value);
 
-			DataTable dtOrders = dsTest.Tables.Add("Orders");
+			DataTable dtOrders = result.Tables.Add("Orders");
 			dtOrders.Columns.Add(new DataColumn("ID", typeof(int)));
 			dtOrders.Columns.Add(new DataColumn("OrderDate", typeof(DateTime)));
 			dtOrders.Columns.Add(new DataColumn("ParentID", typeof(int)));
@@ -36,64 +129,28 @@ namespace Samples
 			dtOrders.Rows.Add(6, DateTime.Now, 34);
 			dtOrders.Rows.Add(DBNull.Value, DBNull.Value, DBNull.Value);
 
-			dsTest.Relations.Add("CUSTOMER_TO_ORDER",
-				dtCustomers.Columns["ID"],
-				dtOrders.Columns["ParentID"],
-				false);
-
-			List<Customer> customers = new List<Customer>();
-			DataMapper.Default.FillObjectList<Customer>(customers, dtCustomers.Rows);
-		}
-	}
-
-	public class Customer
-	{
-		private int _CustomerId;
-		private string _CustomerName;
-		private OrderCollection _Orders;
-
-		[DataColumnMap("ID")]
-		public int CustomerId
-		{
-			get { return _CustomerId; }
-			set { _CustomerId = value; }
+			return result;
 		}
 
-		[DataColumnMap]
-		public string CustomerName
+		private static IDataReader LoadNodeDataReader()
 		{
-			get { return _CustomerName; }
-			set { _CustomerName = value; }
+			return LoadNodeDataTable().CreateDataReader();
 		}
 
-		[DataRelationMap("CUSTOMER_TO_ORDER", typeof(Order))]
-		public OrderCollection Orders
+		private static DataTable LoadNodeDataTable()
 		{
-			get { return _Orders; }
-			set { _Orders = value; }
-		}
-	}
+			DataTable dtNode = new DataTable("Node");
+			dtNode.Columns.Add(new DataColumn("Id", typeof(int)));
+			dtNode.Columns.Add(new DataColumn("Name", typeof(string)));
+			dtNode.Columns.Add(new DataColumn("ParentId", typeof(int)));
 
-	public class OrderCollection : ArrayList
-	{ }
+			dtNode.Rows.Add(1, "Node1", DBNull.Value);
+			dtNode.Rows.Add(2, "Node2", 1);
+			dtNode.Rows.Add(3, "Node3", 1);
+			dtNode.Rows.Add(4, "Node3", 3);
+			dtNode.Rows.Add(5, "Node3", 3);
 
-	public class Order
-	{
-		private int _OrderId;
-		private DateTime? _OrderDate;
-
-		[DataColumnMap("ID")]
-		public int OrderId
-		{
-			get { return _OrderId; }
-			set { _OrderId = value; }
-		}
-
-		[DataColumnMap]
-		public DateTime? OrderDate
-		{
-			get { return _OrderDate; }
-			set { _OrderDate = value; }
+			return dtNode;
 		}
 	}
 }

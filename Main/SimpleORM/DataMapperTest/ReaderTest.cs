@@ -180,6 +180,19 @@ namespace DataMapperTest
 
 
 		[TestMethod]
+		public void ReaderRefToSelfTest()
+		{
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(null);
+			var reader = _Hierarchy.Tables[0].CreateDataReader();
+
+			var parent = DataMapper.Default.FillObject<SelfRef>(reader, null, new DBConnMock());
+
+			if (parent.Self == null)
+				Assert.Fail("ReaderRefToSelfTest fails.");
+		}
+
+		[TestMethod]
 		public void ReaderTreeTest()
 		{
 			DataMapper.Default.ClearCache();
@@ -187,7 +200,8 @@ namespace DataMapperTest
 			var reader = _TreeTable.CreateDataReader();
 
 			List<Node> objs = new List<Node>();
-			DataMapper.Default.FillObjectListComplex<Node>(objs, reader, 0, (n, r) => r.IsDBNull(4) || r.GetInt32(4) == 0);
+			DataMapper.Default.FillObjectListComplex<Node>(reader, objs, 0, null, true, 
+				(r, o) => r.IsDBNull(4) || r.GetInt32(4) == 0);
 
 			if (objs.Count != 2)
 				Assert.Fail("ReaderTreeTest fails.");
@@ -220,7 +234,7 @@ namespace DataMapperTest
 			var reader = dtPerfTest.CreateDataReader();
 
 			DateTime dtStart = DateTime.Now;
-			DataMapper.Default.FillObjectList<TesterAll>(tester, reader, new DBConnMock(), 1, true);
+			DataMapper.Default.FillObjectList<TesterAll>(reader, tester, 1);
 			TimeSpan span = DateTime.Now - dtStart;
 
 			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);
@@ -240,7 +254,7 @@ namespace DataMapperTest
 
 			try
 			{
-				DataMapper.Default.FillObjectListComplex<Parent>(objs, reader, 0);
+				DataMapper.Default.FillObjectListComplex<Parent>(reader, objs);
 			}
 			finally
 			{
@@ -290,7 +304,7 @@ namespace DataMapperTest
 			List<TesterAll> objs = new List<TesterAll>();
 
 			var reader = _DataSet.CreateDataReader();
-			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0);
+			DataMapper.Default.FillObjectListComplex<TesterAll>(reader, objs);
 			//DataMapper.Default.SaveGeneratedAsm();
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||
@@ -329,7 +343,7 @@ namespace DataMapperTest
 
 			reader = _DataSet.CreateDataReader();
 			objs.Clear();
-			DataMapper.Default.FillObjectListComplex<TesterAll>(objs, reader, 0);
+			DataMapper.Default.FillObjectListComplex<TesterAll>(reader, objs);
 			reader.Close();
 		}
 
@@ -343,7 +357,7 @@ namespace DataMapperTest
 
 			var reader = _DataSet.CreateDataReader();
 			var conn = new DBConnMock();
-			DataMapper.Default.FillObjectList<TesterAll>(objs, reader, conn, 0, true);
+			DataMapper.Default.FillObjectList<TesterAll>(reader, objs, conn);
 
 			Assert.IsTrue(reader.IsClosed);
 			Assert.IsTrue(conn.State == ConnectionState.Closed);
@@ -385,7 +399,7 @@ namespace DataMapperTest
 
 			reader = _DataSet.CreateDataReader();
 			objs.Clear();
-			DataMapper.Default.FillObjectList<TesterAll>(objs, reader);
+			DataMapper.Default.FillObjectList<TesterAll>(reader, objs);
 			reader.Close();
 		}
 
@@ -397,7 +411,6 @@ namespace DataMapperTest
 
 			TesterAll result = new TesterAll();
 			var reader = _DataSet.CreateDataReader();
-			reader.Read();
 			DataMapper.Default.FillObject(reader, result);
 
 			if (result.ValueProp != 72 ||
@@ -413,7 +426,6 @@ namespace DataMapperTest
 				)
 				Assert.Fail("FillObjectTest fails.");
 
-			reader.Read();
 			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
 			if (result.ValueProp != 34 ||
 				 result.ValuePropNI != true ||
@@ -428,7 +440,6 @@ namespace DataMapperTest
 				)
 				Assert.Fail("FillObjectsTest fails.");
 
-			reader.Read();
 			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
 			if (result.ValueProp != default(int) ||
 				 result.ValuePropNI != default(bool) ||
@@ -443,7 +454,6 @@ namespace DataMapperTest
 				)
 				Assert.Fail("FillObjectsTest fails.");
 
-			reader.Read();
 			result = DataMapper.Default.FillObject<TesterAll>(reader, null);
 			if (result.ValueProp != 0 ||
 				 result.ValuePropNI != false ||
@@ -479,8 +489,6 @@ namespace DataMapperTest
 			//DataMapper.Default.SaveGeneratedAsm("asm1.dll");
 
 			var reader = dt.CreateDataReader();
-			reader.Read();
-
 			DataMapper.Default.FillObject(reader, tester);
 
 			if (tester.ValueProp != 72 ||
@@ -499,12 +507,11 @@ namespace DataMapperTest
 		[TestMethod]
 		public void FillObjectTestSubclassing()
 		{
-			TesterAllSub tester = new TesterAllSub();
+			new TesterAllSub();
 			DataMapper.Default.ClearCache();
 			DataMapper.Default.SetConfig(String.Empty);
 			var reader = _DataSet.CreateDataReader();
-			reader.Read();
-			DataMapper.Default.FillObject(reader, tester, 0);
+			TesterAllSub tester = DataMapper.Default.FillObject<TesterAllSub>(reader, null);
 
 			if (tester.ValueProp != 1 ||
 				 tester.ValuePropNI != true ||
@@ -516,8 +523,7 @@ namespace DataMapperTest
 				)
 				Assert.Fail("FillObjectTest fails.");
 
-			reader.Read();
-			reader.Read();
+			reader.Read(); // skip one record
 			DataMapper.Default.FillObject(reader, tester, 0);
 
 			if (tester.ValueProp != default(int) ||

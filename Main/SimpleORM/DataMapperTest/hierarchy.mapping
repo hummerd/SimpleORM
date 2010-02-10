@@ -7,8 +7,8 @@
   </TypeMapping>
 
   <TypeMapping typeName="DataMapperTest, DataMapperTest.EntityType" schemeId="0">
-    <PropetyMapping propertyName="Id" dataColumnName="Id"/>
-    <PropetyMapping propertyName="Name" dataColumnName="Name"/>
+    <PropetyMapping propertyName="Id" dataColumnName="EntityTypeId"/>
+    <PropetyMapping propertyName="Name" dataColumnName="EntityTypeName"/>
   </TypeMapping>
   
   <TypeMapping typeName="DataMapperTest, DataMapperTest.Parent" schemeId="0" tableName="PARENT">

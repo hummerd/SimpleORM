@@ -17,20 +17,20 @@ namespace SimpleORM
 		/// </summary>
 		/// <param name="type"></param>
 		/// <returns></returns>
-		public static Type GetListItemType(Type type)
+		public static Type GetListItemType(Type listType)
 		{
-			while (type != null)
+			while (listType != null)
 			{
-				if (type.IsGenericType)
+				if (listType.IsGenericType)
 					break;
 
-				type = type.BaseType;
+				listType = listType.BaseType;
 			}
 
-			if (type == null)
+			if (listType == null)
 				return null;
 
-			return type.GetGenericArguments()[0];
+			return listType.GetGenericArguments()[0];
 		}
 
 		public static bool IsComplexType(Type type)

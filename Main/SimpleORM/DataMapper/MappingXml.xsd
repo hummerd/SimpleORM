@@ -29,11 +29,13 @@
                   <xs:attribute name="dataColumnName" type="xs:string" use="optional" />
                   <xs:attribute name="complex" type="xs:string" use="optional" />
                   <xs:attribute name="dataRelationName" type="xs:string" use="optional" />
+                  <xs:attribute name="nestedItemType" type="xs:string" use="optional" />
+                  <xs:attribute name="nestedSchemeId" type="xs:unsignedInt" use="optional" />
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
             <xs:attribute name="typeName" type="xs:string" use="required" />
-            <xs:attribute name="schemeId" type="xs:unsignedByte" use="optional" />
+            <xs:attribute name="schemeId" type="xs:unsignedInt" use="optional" />
             <xs:attribute name="tableName" type="xs:string" use="optional" />
             <xs:attribute name="tableIx" type="xs:string" use="optional" />
           </xs:complexType>

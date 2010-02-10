@@ -127,6 +127,18 @@ namespace SimpleORM
 		}
 
 
+		public bool CheckTableIndex()
+		{
+			var allEI = GetWholeChildTree();
+			for (int i = 0; i < allEI.Count; i++)
+			{
+				if (!allEI[i].RefTable.IsEmpty())
+					return true;
+			}
+
+			return false;
+		}
+
 		public List<KeyInfo> GetPrimaryKeys()
 		{
 			return GetKeys(true);

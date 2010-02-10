@@ -4,7 +4,10 @@ using System.Text;
 
 namespace SimpleORM.Attributes
 {
-	[AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+	/// <summary>
+	/// Maps object property or field to specified column
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true)]
 	public class DataColumnMapAttribute : DataMapAttribute
 	{
 		public DataColumnMapAttribute()

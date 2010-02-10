@@ -120,7 +120,7 @@ namespace DataMapperTest
 			List<TesterAll> tester = new List<TesterAll>(100000);
 
 			DateTime dtStart = DateTime.Now;
-			DataMapper.Default.FillObjectList<TesterAll>(tester, dtPerfTest.Rows, 1);
+			DataMapper.Default.FillObjectList<TesterAll>(dtPerfTest.Rows, tester, 1);
 			TimeSpan span = DateTime.Now - dtStart;
 
 			testContextInstance.WriteLine("Time for creation of " + rowCount + " objects is: " + span);
@@ -435,7 +435,7 @@ namespace DataMapperTest
 			DataMapper.Default.SetConfig(String.Empty);
 
 			List<TesterAll> objs = new List<TesterAll>(_DateTable.Rows.Count);
-			DataMapper.Default.FillObjectList<TesterAll>(objs, _DateTable.Rows);
+			DataMapper.Default.FillObjectList<TesterAll>(_DateTable.Rows, objs);
 
 			if (objs[0].ValueProp != 72 ||
 				 objs[0].ValuePropNI != true ||

@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<MappingDefinition>
+
+  <TypeMapping typeName="Samples, Samples.Entity.Node" schemeId="0" tableIx="0">
+    <RefKey key="NodeNode">
+      <Column name="Id" foreignName="ParentId"/>
+    </RefKey>
+    <PropetyMapping propertyName="Id" dataColumnName="Id"/>
+    <PropetyMapping propertyName="Name" dataColumnName="Name"/>
+    <PropetyMapping propertyName="Children" dataRelationName="NodeNode" />
+  </TypeMapping>
+  
+</MappingDefinition>
