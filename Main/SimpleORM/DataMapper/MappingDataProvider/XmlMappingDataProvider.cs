@@ -247,7 +247,7 @@ namespace SimpleORM.MappingDataProvider
 				itemType = ReflectionHelper.GetType(attType.Value);
 			}
 
-			XmlAttribute attNestedSchemaId = xmlMapping.Attributes["nestedSchemaId"];
+			XmlAttribute attNestedSchemaId = xmlMapping.Attributes["nestedSchemeId"];
 			if (attNestedSchemaId != null && !String.IsNullOrEmpty(attNestedSchemaId.Value))
 				nestedSchemeId = int.Parse(attNestedSchemaId.Value);
 		}
