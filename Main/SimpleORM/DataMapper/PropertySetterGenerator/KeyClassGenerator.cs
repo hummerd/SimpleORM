@@ -32,6 +32,10 @@ namespace SimpleORM.PropertySetterGenerator
 			int childSchemeId)
 		{
 			string className = "DataPropertySetter." + key;
+			var type = _ModuleBuilder.GetType(className);
+			if (type != null)
+				return type;
+
 			var tb = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
 
 			MethodBuilder getHash = tb.DefineMethod("GetHashCode",

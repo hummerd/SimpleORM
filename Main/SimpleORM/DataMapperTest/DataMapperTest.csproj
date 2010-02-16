@@ -55,6 +55,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="datatable.mapping">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="data.mapping">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

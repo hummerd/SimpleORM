@@ -242,6 +242,53 @@ namespace DataMapperTest
 		}
 
 		[TestMethod]
+		public void FillObjectListComplexNoChildsReaderTest()
+		{
+			DataMapper.Default.ClearCache();
+			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\hierarchy.mapping");
+
+			List<Parent> objs = new List<Parent>();
+
+			var copy = _Hierarchy.Copy();
+			copy.Tables[1].Rows.Clear();
+			var reader = copy.CreateDataReader();
+
+			DataMapper.Default.FillObjectListComplex<Parent>(reader, objs);
+			reader.Close();
+
+			if (objs[0].Id != 1 ||
+				 objs[0].EntityType == null ||
+				 objs[0].Name.Length < 3 ||
+				 objs[0].Childs1.Count != 0 ||
+				 objs[0].Childs2.Count != 1 || //4
+				 objs[0].Childs2[0].Childs2.Count != 1
+				)
+				Assert.Fail("HierarchyTest fails.");
+
+			if (objs[1].Id != 2 ||
+				 objs[1].EntityType == null ||
+				 objs[1].Name.Length < 3 ||
+				 objs[1].Childs1.Count != 0 ||
+				 objs[1].Childs2.Count != 2 ||//5,6
+				 objs[1].Childs2[0].Id != 5 ||
+				 objs[1].Childs2[0].EntityType == null ||
+				 objs[1].Childs2[0].Childs2.Count != 2 ||
+				 objs[1].Childs2[1].Id != 6 ||
+				 objs[1].Childs2[1].EntityType == null ||
+				 objs[1].Childs2[1].Childs2.Count != 0
+				)
+				Assert.Fail("HierarchyTest fails.");
+
+			if (objs[2].Id != 3 ||
+				 objs[2].EntityType == null ||
+				 objs[2].Name.Length < 3 ||
+				 objs[2].Childs1.Count != 0 ||
+				 objs[2].Childs2.Count != 0
+				)
+				Assert.Fail("HierarchyTest fails.");
+		}
+
+		[TestMethod]
 		public void FillObjectListComplexReaderTest()
 		{
 			DataMapper.Default.ClearCache();

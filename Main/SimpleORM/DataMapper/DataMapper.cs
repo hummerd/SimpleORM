@@ -316,7 +316,7 @@ namespace SimpleORM
 		public void FillObjectListComplex<TObject>(IDataReader reader, IList objectList, int schemeId)
 			where TObject : class
 		{
-			FillObjectListComplex<TObject>(reader, objectList, 0, null, false, null);
+			FillObjectListComplex<TObject>(reader, objectList, schemeId, null, false, null);
 		}
 
 		/// <summary>
@@ -889,90 +889,96 @@ namespace SimpleORM
 			int tableIx = 0;
 			do
 			{
-				if (!reader.Read())
-					continue;
+				//if (!reader.Read())
+				//    continue;
 
 				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
 				List<ExtractInfo> assosiatedEI = extractInfo.FindByTable(tableIx, schemeTable.TableName);
 
-				for (int i = 0; i < assosiatedEI.Count; i++)
+				int eiCount = assosiatedEI.Count;
+				if (eiCount <= 0)
+					System.Diagnostics.Debug.WriteLine("Warning! No type to extract from table " + schemeTable.TableName);
+				else
 				{
-					ExtractInfo currentEI = assosiatedEI[i];
-					MethodInfo extractMethod = null;
-					currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
-
-					if (extractMethod == null)
+					for (int i = 0; i < eiCount; i++)
 					{
-						_DMCodeGenerator.GenerateSetterMethod(
-							currentEI,
-							schemeTable,
-							DataReaderPSG.TypeOfDataSource
-						);
+						ExtractInfo currentEI = assosiatedEI[i];
+						MethodInfo extractMethod = null;
+						currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
 
-						if (!currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod))
-							throw new InvalidOperationException("Failed to create setter method.");
-					}
+						if (extractMethod == null)
+						{
+							_DMCodeGenerator.GenerateSetterMethod(
+								currentEI,
+								schemeTable,
+								DataReaderPSG.TypeOfDataSource
+							);
 
-					columnIndexes = currentEI.GetSubColumnsIndexes(schemeTable);
+							if (!currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod))
+								throw new InvalidOperationException("Failed to create setter method.");
+						}
 
-					List<KeyInfo> primaryKeys = currentEI.GetPrimaryKeys();
-					primaryKeys.ForEach(pk =>
-						pk.InitParentColumnIndexes(schemeTable)
-						);
+						columnIndexes = currentEI.GetSubColumnsIndexes(schemeTable);
 
-					List<KeyInfo> foreignKeys = currentEI.GetForeignKeys().FindAll(fk =>
-						fk.RefTable.EmptyOrRefersTo(tableIx, schemeTable.TableName));
+						List<KeyInfo> primaryKeys = currentEI.GetPrimaryKeys();
+						primaryKeys.ForEach(pk =>
+							pk.InitParentColumnIndexes(schemeTable)
+							);
 
-					foreignKeys.ForEach(fk =>
-						fk.InitChildColumnIndexes(schemeTable)
-						);
+						List<KeyInfo> foreignKeys = currentEI.GetForeignKeys().FindAll(fk =>
+							fk.RefTable.EmptyOrRefersTo(tableIx, schemeTable.TableName));
 
-					KeyObjectIndex pkObjects;
-					KeyObjectIndex fkObjects;
+						foreignKeys.ForEach(fk =>
+							fk.InitChildColumnIndexes(schemeTable)
+							);
 
-					if (currentEI == extractInfo)
-					{
-						ExtractPrimaryObjects<TObject>(
-						   reader,
-						   primaryKeys,
-						   foreignKeys,
-						   out pkObjects,
-						   out fkObjects,
-						   columnIndexes,
-						   objectList,
-						   extractMethod,
-						   filter);
-					}
-					else 
-					{
-						ExtractNotPrimaryObjects(
-						   reader,
-						   currentEI.TargetType,
-						   primaryKeys,
-						   foreignKeys,
-						   out pkObjects,
-						   out fkObjects,
-						   columnIndexes,
-						   extractMethod);
-					}
+						KeyObjectIndex pkObjects;
+						KeyObjectIndex fkObjects;
 
-					KeyObjectIndex koi;
-					if (tempPrimary.TryGetValue(currentEI, out koi))
-					{
-						foreach (var item in pkObjects)
-							koi.AddRange(item.Key, item.Value);
-					}
-					else
-						tempPrimary.Add(currentEI, pkObjects);
+						if (currentEI == extractInfo)
+						{
+							ExtractPrimaryObjects<TObject>(
+							   reader,
+							   primaryKeys,
+							   foreignKeys,
+							   out pkObjects,
+							   out fkObjects,
+							   columnIndexes,
+							   objectList,
+							   extractMethod,
+							   filter);
+						}
+						else
+						{
+							ExtractNotPrimaryObjects(
+							   reader,
+							   currentEI.TargetType,
+							   primaryKeys,
+							   foreignKeys,
+							   out pkObjects,
+							   out fkObjects,
+							   columnIndexes,
+							   extractMethod);
+						}
+
+						KeyObjectIndex koi;
+						if (tempPrimary.TryGetValue(currentEI, out koi))
+						{
+							foreach (var item in pkObjects)
+								koi.AddRange(item.Key, item.Value);
+						}
+						else
+							tempPrimary.Add(currentEI, pkObjects);
 
 
-					if (tempForeign.TryGetValue(currentEI, out koi))
-					{
-						foreach (var item in fkObjects)
-							koi.AddRange(item.Key, item.Value);
-					}
-					else
-						tempForeign.Add(currentEI, fkObjects);
+						if (tempForeign.TryGetValue(currentEI, out koi))
+						{
+							foreach (var item in fkObjects)
+								koi.AddRange(item.Key, item.Value);
+						}
+						else
+							tempForeign.Add(currentEI, fkObjects);
+					} //end for
 				}
 
 				tableIx++;
@@ -1006,7 +1012,8 @@ namespace SimpleORM
 			pkObjects = new KeyObjectIndex(typeof(TObject));
 			fkObjects = new KeyObjectIndex(typeof(TObject));
 
-			do
+			//do
+			while (reader.Read())
 			{
 				TObject obj = _ObjectBuilder.CreateObject<TObject>();
 				//Fill object
@@ -1017,7 +1024,7 @@ namespace SimpleORM
 				{
 					objectList.Add(obj);
 				}
-			} while (reader.Read());
+			} 
 		}
 
 		/// <summary>
@@ -1047,93 +1054,98 @@ namespace SimpleORM
 			int tableIx = 0;
 			do
 			{
-				if (!reader.Read())
-					continue;
+				//if (!reader.Read())
+				//    continue;
 
 				DataTable schemeTable = GetTableFromSchema(reader.GetSchemaTable());
 				List<ExtractInfo> assosiatedEI = extractInfo.FindByTable(tableIx, schemeTable.TableName);
 
-				for (int i = 0; i < assosiatedEI.Count; i++)
+				int eiCount = assosiatedEI.Count;
+				if (eiCount <= 0)
+					System.Diagnostics.Debug.WriteLine("Warning! No type to extract from table " + schemeTable.TableName);
+				else
 				{
-					ExtractInfo currentEI = assosiatedEI[i];
-					MethodInfo extractMethod = null;
-					currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
-
-					if (extractMethod == null)
+					for (int i = 0; i < eiCount; i++)
 					{
-						_DMCodeGenerator.GenerateSetterMethod(
-							currentEI,
-							schemeTable,
-							DataReaderPSG.TypeOfDataSource
-						);
+						ExtractInfo currentEI = assosiatedEI[i];
+						MethodInfo extractMethod = null;
+						currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
 
-						if (!currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod))
-							throw new InvalidOperationException("Failed to create setter method.");
-					}
+						if (extractMethod == null)
+						{
+							_DMCodeGenerator.GenerateSetterMethod(
+								currentEI,
+								schemeTable,
+								DataReaderPSG.TypeOfDataSource
+								);
 
-					columnIndexes = currentEI.GetSubColumnsIndexes(schemeTable);
+							if (!currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod))
+								throw new InvalidOperationException("Failed to create setter method.");
+						}
 
-					List<KeyInfo> primaryKeys = currentEI.GetPrimaryKeys();
-					primaryKeys.ForEach(pk =>
-						pk.InitParentColumnIndexes(schemeTable)
-						);
+						columnIndexes = currentEI.GetSubColumnsIndexes(schemeTable);
 
-					List<KeyInfo> foreignKeys = currentEI.GetForeignKeys().FindAll(fk =>
-						fk.RefTable.EmptyOrRefersTo(tableIx, schemeTable.TableName));
+						List<KeyInfo> primaryKeys = currentEI.GetPrimaryKeys();
+						primaryKeys.ForEach(pk =>
+							pk.InitParentColumnIndexes(schemeTable)
+							);
 
-					foreignKeys.ForEach(fk =>
-						fk.InitChildColumnIndexes(schemeTable)
-						);
+						List<KeyInfo> foreignKeys = currentEI.GetForeignKeys().FindAll(fk =>
+							fk.RefTable.EmptyOrRefersTo(tableIx, schemeTable.TableName));
 
-					KeyObjectIndex pkObjects;
-					KeyObjectIndex fkObjects;
+						foreignKeys.ForEach(fk =>
+							fk.InitChildColumnIndexes(schemeTable)
+							);
 
-					if (currentEI == extractInfo)
-					{
-						ExtractPrimaryObjects(
-						   reader,
-						   objectType,
-						   primaryKeys,
-						   foreignKeys,
-						   out pkObjects,
-						   out fkObjects,
-						   columnIndexes,
-						   objectList,
-						   extractMethod,
-						   filter);
-					}
-					else
-					{
-						ExtractNotPrimaryObjects(
-						   reader,
-						   currentEI.TargetType,
-						   primaryKeys,
-						   foreignKeys,
-						   out pkObjects,
-						   out fkObjects,
-						   columnIndexes,
-						   extractMethod);
-					}
+						KeyObjectIndex pkObjects;
+						KeyObjectIndex fkObjects;
 
-					KeyObjectIndex koi;
-					if (tempPrimary.TryGetValue(currentEI, out koi))
-					{
-						foreach (var item in pkObjects)
-							koi.AddRange(item.Key, item.Value);
-					}
-					else
-						tempPrimary.Add(currentEI, pkObjects);
+						if (currentEI == extractInfo)
+						{
+							ExtractPrimaryObjects(
+							   reader,
+							   objectType,
+							   primaryKeys,
+							   foreignKeys,
+							   out pkObjects,
+							   out fkObjects,
+							   columnIndexes,
+							   objectList,
+							   extractMethod,
+							   filter);
+						}
+						else
+						{
+							ExtractNotPrimaryObjects(
+							   reader,
+							   currentEI.TargetType,
+							   primaryKeys,
+							   foreignKeys,
+							   out pkObjects,
+							   out fkObjects,
+							   columnIndexes,
+							   extractMethod);
+						}
+
+						KeyObjectIndex koi;
+						if (tempPrimary.TryGetValue(currentEI, out koi))
+						{
+							foreach (var item in pkObjects)
+								koi.AddRange(item.Key, item.Value);
+						}
+						else
+							tempPrimary.Add(currentEI, pkObjects);
 
 
-					if (tempForeign.TryGetValue(currentEI, out koi))
-					{
-						foreach (var item in fkObjects)
-							koi.AddRange(item.Key, item.Value);
-					}
-					else
-						tempForeign.Add(currentEI, fkObjects);
+						if (tempForeign.TryGetValue(currentEI, out koi))
+						{
+							foreach (var item in fkObjects)
+								koi.AddRange(item.Key, item.Value);
+						}
+						else
+							tempForeign.Add(currentEI, fkObjects);
+					} //end for
 				}
-
 				tableIx++;
 			} while (reader.NextResult());
 
@@ -1155,7 +1167,8 @@ namespace SimpleORM
 			pkObjects = new KeyObjectIndex(objectType);
 			fkObjects = new KeyObjectIndex(objectType);
 
-			do
+			//do
+			while (reader.Read())
 			{
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
@@ -1166,7 +1179,7 @@ namespace SimpleORM
 				{
 					objectList.Add(obj);
 				}
-			} while (reader.Read());
+			} 
 		}
 
 		protected void ExtractNotPrimaryObjects(
@@ -1183,13 +1196,14 @@ namespace SimpleORM
 			pkObjects = new KeyObjectIndex(objectType);
 			fkObjects = new KeyObjectIndex(objectType);
 
-			do
+			//do
+			while (reader.Read())
 			{
 				object obj = _ObjectBuilder.CreateObject(objectType);
 				//Fill object
 				CallExtractorMethod(method, obj, reader, columnIndexes);
 				ExtractObjectRelations(reader, obj, objectType, pkInfo, fkInfo, pkObjects, fkObjects);
-			} while (reader.Read());
+			} 
 		}
 
 		protected void ExtractObjectRelations(
@@ -1582,10 +1596,12 @@ namespace SimpleORM
 		{
 			protected Type _ListType;
 
+
 			public KeyObjectIndex(Type objectType)
 			{
 				_ListType = objectType;
 			}
+
 
 			public void AddObject(object key, object obj)
 			{

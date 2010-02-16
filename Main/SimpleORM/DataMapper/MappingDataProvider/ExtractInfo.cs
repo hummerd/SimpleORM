@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
+using SimpleORM.Exception;
 
 
 namespace SimpleORM
@@ -127,6 +128,16 @@ namespace SimpleORM
 		}
 
 
+		public void ForAllTree(Action<ExtractInfo> action)
+		{
+			ForAllTree(new List<ExtractInfo>(), action);
+		}
+
+		public void ResolveForeign()
+		{
+			ResolveForeign(new List<ExtractInfo>());
+		}
+
 		public bool CheckTableIndex()
 		{
 			var allEI = GetWholeChildTree();
@@ -248,30 +259,62 @@ namespace SimpleORM
 		}
 
 
+		protected void ForAllTree(List<ExtractInfo> resolved, Action<ExtractInfo> action)
+		{
+			if (resolved.Contains(this))
+				return;
+
+			resolved.Add(this);
+			action(this);
+
+			foreach (var item in ChildTypes)
+			{
+				action(item.RelatedExtractInfo);
+			}
+
+			foreach (var item in SubTypes)
+			{
+				action(item.RelatedExtractInfo);
+			}
+		}
+
+		protected void ResolveForeign(List<ExtractInfo> resolved)
+		{
+			if (resolved.Contains(this))
+				return;
+
+			resolved.Add(this);
+
+			foreach (var item in ChildTypes)
+			{
+				var ei = item.RelatedExtractInfo;
+				ei.RelationsFromParent.Add(item);
+				ei.ResolveForeign(resolved);
+			}
+
+			foreach (var item in SubTypes)
+			{
+				item.RelatedExtractInfo.ResolveForeign(resolved);
+			}
+		}
+
 		protected List<KeyInfo> GetKeys(bool primary)
 		{
 			List<KeyInfo> result = new List<KeyInfo>(ChildTypes.Count);
 			var rels = primary ? ChildTypes : RelationsFromParent;
 
 			foreach (var item in rels)
-				if (!result.Contains(item.KeyInfo))
-					result.Add(item.KeyInfo);
+			{
+				var key = item.KeyInfo;
+				if (key == null)
+					throw new DataMapperException("Can not fin key for relation " + item.MapName);
+
+				if (!result.Contains(key))
+					result.Add(key);
+			}
 
 			return result;
 		}
-
-		//protected List<List<int>> GetSubColumnsIndexes(DataTable table, List<List<int>> result)
-		//{
-		//    if (result == null)
-		//        result = new List<List<int>>();
-
-		//    result.Add(GetColumnsIndexes(table));
-
-		//    foreach (var item in SubTypes)
-		//        item.RelatedExtractInfo.GetSubColumnsIndexes(table, result);
-
-		//    return result;
-		//}
 
 		protected List<int> GetColumnsIndexes(DataTable table)
 		{

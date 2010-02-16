@@ -7,7 +7,7 @@ namespace SimpleORM.Attributes
 	[AttributeUsage(AttributeTargets.All, AllowMultiple = true)]
 	public class DataRelationMapAttribute : DataMapAttribute
 	{
-		protected int _NestedSchemeId = 0;
+		protected int? _NestedSchemeId = null;
 		protected Type _ItemType;
 
 
@@ -41,7 +41,7 @@ namespace SimpleORM.Attributes
 
 		public int NestedSchemeId
 		{
-			get { return _NestedSchemeId; }
+			get { return _NestedSchemeId ?? _SchemeId; }
 			set { _NestedSchemeId = value; }
 		}
 

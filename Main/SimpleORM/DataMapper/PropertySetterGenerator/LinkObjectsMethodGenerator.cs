@@ -108,6 +108,9 @@ namespace SimpleORM.PropertySetterGenerator
 		protected static MethodInfo _DicGetItem = typeof(Dictionary<ExtractInfo, DataMapper.KeyObjectIndex>).GetMethod(
 			"get_Item", new Type[] { typeof(ExtractInfo) } );
 
+		protected static MethodInfo _DicTryGet = typeof(Dictionary<ExtractInfo, DataMapper.KeyObjectIndex>).GetMethod(
+			"TryGetValue", new Type[] { typeof(ExtractInfo), typeof(DataMapper.KeyObjectIndex).MakeByRefType() });
+		
 		protected static MethodInfo _EiGetChildTypes = typeof(ExtractInfo).GetMethod(
 			"get_ChildTypes", new Type[]{ } );
 
@@ -116,9 +119,6 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected static MethodInfo _ReiGetEI = typeof(RelationExtractInfo).GetMethod(
 			"get_RelatedExtractInfo", new Type[]{ } );
-
-		protected static MethodInfo _DicKoiGet = typeof(Dictionary<ExtractInfo, DataMapper.KeyObjectIndex>).GetMethod(
-			"get_Item", new Type[]{ typeof(ExtractInfo) } );
 
 		protected static MethodInfo _KvObjListGetValue = typeof(KeyValuePair<object, IList>).GetMethod(
 			"get_Value", new Type[]{ } );
@@ -134,6 +134,7 @@ namespace SimpleORM.PropertySetterGenerator
 
 		protected static MethodInfo _Invoke = typeof(MethodInfo).GetMethod(
 			"Invoke", new Type[] { typeof(object), typeof(object[]) });
+
 
 		public static readonly List<MethodInfo> _GetItems = new List<MethodInfo>();
 
@@ -161,33 +162,41 @@ namespace SimpleORM.PropertySetterGenerator
 					GenerateLinkMethod(item.RelatedExtractInfo, createNamespace);
 
 			LocalBuilder pkObjects = ilOut.DeclareLocal(typeof(DataMapper.KeyObjectIndex));
-			Label needLink = ilOut.DefineLabel();
+			//pkObjects.SetLocalSymInfo("pkObjects");
+			//Label needLink = ilOut.DefineLabel();
+			Label lblRet = ilOut.DefineLabel();
 
 			//if (filled.ContainsKey(extractInfo))
 			//    return;
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Callvirt, _DicContainsKey);
-			ilOut.Emit(OpCodes.Brfalse, needLink);
-			ilOut.Emit(OpCodes.Ret);
-			ilOut.MarkLabel(needLink);
+			ilOut.Emit(OpCodes.Brtrue, lblRet);
+			//ilOut.Emit(OpCodes.Ret);
+			//ilOut.MarkLabel(needLink);
 			//filled.Add(extractInfo)
 			ilOut.Emit(OpCodes.Ldarg_3);
 			ilOut.Emit(OpCodes.Ldarg_0);
 			ilOut.Emit(OpCodes.Ldnull);
 			ilOut.Emit(OpCodes.Callvirt, _DicAdd);
-
+			//KeyObjectIndex pkObjects = tempPrimary[extractInfo];
 			ilOut.Emit(OpCodes.Ldarg_1);
 			ilOut.Emit(OpCodes.Ldarg_0);
-			ilOut.Emit(OpCodes.Callvirt, _DicGetItem);
-			ilOut.Emit(OpCodes.Stloc, pkObjects);
+			ilOut.Emit(OpCodes.Ldloca, pkObjects);
+			ilOut.Emit(OpCodes.Callvirt, _DicTryGet);
+			ilOut.Emit(OpCodes.Brfalse, lblRet);
+			//ilOut.Emit(OpCodes.Callvirt, _DicGetItem);
+			//ilOut.Emit(OpCodes.Stloc, pkObjects);
 
 			Type parentListType = typeof(List<>).MakeGenericType(extractInfo.TargetType);
 			Type parentEnumeratorListType = typeof(List<>.Enumerator).MakeGenericType(extractInfo.TargetType);
 
 			LocalBuilder childEI = ilOut.DeclareLocal(typeof(ExtractInfo));
+			//childEI.SetLocalSymInfo("childEI");
 			LocalBuilder fkObjects = ilOut.DeclareLocal(typeof(DataMapper.KeyObjectIndex));
+			//fkObjects.SetLocalSymInfo("fkObjects");
 			LocalBuilder parentList = ilOut.DeclareLocal(parentListType);
+			//parentList.SetLocalSymInfo("parentList");
 			
 			for (int i = 0; i < extractInfo.ChildTypes.Count; i++)
 			{
@@ -197,10 +206,13 @@ namespace SimpleORM.PropertySetterGenerator
 				Type enumerableChildType = typeof(IEnumerable<>).MakeGenericType(childType);
 
 				LocalBuilder children = ilOut.DeclareLocal(childListType);
-				
+				//children.SetLocalSymInfo("children" + i);
+
 				Label afterListNull = ilOut.DefineLabel();
+				Label lblNoFk = ilOut.DefineLabel();
 				Type listType = ReflectionHelper.GetReturnType(extractInfo.ChildTypes[i].Member);
 				LocalBuilder targetList = ilOut.DeclareLocal(listType);
+				//targetList.SetLocalSymInfo("targetList" + i);
 
 				//ExtractInfo childEI = extractInfo.ChildTypes[0].RelatedExtractInfo;
 				ilOut.Emit(OpCodes.Ldarg_0);
@@ -213,8 +225,11 @@ namespace SimpleORM.PropertySetterGenerator
 				//DataMapper.KeyObjectIndex fkObjects = tempForeign[childEI];
 				ilOut.Emit(OpCodes.Ldarg_2);
 				ilOut.Emit(OpCodes.Ldloc, childEI);
-				ilOut.Emit(OpCodes.Callvirt, _DicKoiGet);
-				ilOut.Emit(OpCodes.Stloc, fkObjects);
+				ilOut.Emit(OpCodes.Ldloca, fkObjects);
+				ilOut.Emit(OpCodes.Callvirt, _DicTryGet);
+				ilOut.Emit(OpCodes.Brfalse, lblNoFk);
+				//ilOut.Emit(OpCodes.Callvirt, _DicGetItem);
+				//ilOut.Emit(OpCodes.Stloc, fkObjects);
 
 				//LinkObjects(childEI, tempPrimary, tempForeign, filled);
 				if (extractInfo.ChildTypes[i].RelatedExtractInfo.LinkMethod != null)
@@ -300,8 +315,11 @@ namespace SimpleORM.PropertySetterGenerator
 						ilOut.MarkLabel(noChildren);
 					});
 				});
+
+				ilOut.MarkLabel(lblNoFk);
 			}
-		
+
+			ilOut.MarkLabel(lblRet);
 			ilOut.Emit(OpCodes.Ret);
 
 			extractInfo.LinkMethod = typeBuilder.CreateType().GetMethod("LinkChild_" + extractInfo.TargetType);
@@ -317,7 +335,7 @@ namespace SimpleORM.PropertySetterGenerator
 				prefix + 
 				extractInfo.TargetType.FullName + 
 				(createNamespace ? "." : "_") +
-				"Link";
+				"Link" + extractInfo.SchemeId;
 
 			typeBuilder = _ModuleBuilder.DefineType(className, TypeAttributes.Class | TypeAttributes.Public);
 			MethodBuilder methodBuilder = typeBuilder.DefineMethod("LinkChild_" + extractInfo.TargetType,

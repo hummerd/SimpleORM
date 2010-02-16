@@ -108,7 +108,10 @@ namespace SimpleORM
 
 		public ExtractInfo CreateExtractInfo(Type targetClassType, int schemeId)
 		{
-			return CreateExtractInfo(targetClassType, schemeId, 0);
+			lock (this)
+			{
+				return CreateExtractInfo(targetClassType, schemeId, 0);
+			}
 		}
 
 		/// <summary>
@@ -139,14 +142,23 @@ namespace SimpleORM
 			Type generatorSourceType,
 			bool createNamespace)
 		{
-			CreateModule();
-			_SetterMethodGenerator.GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, createNamespace);
-			GenerateKeys(extractInfo, dtSource, generatorSourceType, true);
-			GenerateKeys(extractInfo, dtSource, generatorSourceType, false);
-			if (extractInfo.ChildTypes.Count > 0)
-				_LinkMethodGenerator.GenerateLinkMethod(extractInfo, createNamespace);
+			lock (this)
+			{
+				CreateModule();
+				_SetterMethodGenerator.GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, createNamespace);
 
-			return extractInfo;
+				var all = extractInfo.GetWholeSubTree();
+				foreach (var item in all)
+				{
+					GenerateKeys(item, dtSource, generatorSourceType, true);
+					GenerateKeys(item, dtSource, generatorSourceType, false);
+
+					if (item.ChildTypes.Count > 0)
+						_LinkMethodGenerator.GenerateLinkMethod(item, createNamespace);
+				}
+
+				return extractInfo;
+			}
 		}
 
 
@@ -195,7 +207,9 @@ namespace SimpleORM
 				{
 					item.RelatedExtractInfo.TargetType = ReflectionHelper.GetListItemType(
 						ReflectionHelper.GetReturnType(item.Member));
-					item.KeyInfo.ChildType = item.RelatedExtractInfo.TargetType;
+
+					if (item.KeyInfo != null)
+						item.KeyInfo.ChildType = item.RelatedExtractInfo.TargetType;
 				}
 
 				if (item.RelatedExtractInfo.TargetType == null)
@@ -208,8 +222,9 @@ namespace SimpleORM
 			{
 				foreach (var item2 in result.ChildTypes)
 				{
-					if (item1.KeyInfo.Equals(item2.KeyInfo))
-						item2.KeyInfo = item1.KeyInfo;
+					var key1 = item1.KeyInfo;
+					if (key1 != null && key1.Equals(item2.KeyInfo))
+						item2.KeyInfo = key1;
 				}
 			}
 
@@ -235,20 +250,7 @@ namespace SimpleORM
 			//fill foreign keys
 			if (extractLevel == 0)
 			{
-				List<ExtractInfo> allEI = result.GetWholeChildTree();
-				for (int i = 0; i < allEI.Count; i++)
-				{
-					var childEI = allEI[i];
-					for (int j = 0; j < allEI.Count; j++)
-					{
-						var parentEI = allEI[j];
-						for (int k = 0; k < parentEI.ChildTypes.Count; k++)
-						{
-							if (parentEI.ChildTypes[k].RelatedExtractInfo.TargetType == childEI.TargetType)
-								childEI.RelationsFromParent.Add(parentEI.ChildTypes[k]);
-						}
-					}
-				}
+				result.ResolveForeign();
 			}
 
 			return result;
@@ -262,12 +264,14 @@ namespace SimpleORM
 
 			foreach (var rei in rels)
 			{
-				GenerateKey(
-					rei.KeyInfo,
-					extractInfo.TargetType,
-					extractInfo.SchemeId,
-					dtSource,
-					generatorSourceType);
+				if (rei.KeyInfo != null)
+					GenerateKey(
+						rei.KeyInfo,
+						rei.Member.DeclaringType,
+						//extractInfo.TargetType,
+						extractInfo.SchemeId,
+						dtSource,
+						generatorSourceType);
 			}
 		}
 

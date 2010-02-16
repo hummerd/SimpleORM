@@ -477,7 +477,7 @@ namespace DataMapperTest
 			TesterAll tester = new TesterAll();
 
 			DataMapper.Default.ClearCache();
-			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\data.mapping");
+			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\datatable.mapping");
 			DataMapper.Default.FillObject(_DateTable.Rows[0], tester, 0);
 
 			if (tester.ValueProp != 72 ||
