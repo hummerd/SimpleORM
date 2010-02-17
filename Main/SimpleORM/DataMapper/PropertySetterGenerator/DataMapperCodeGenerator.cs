@@ -74,7 +74,7 @@ namespace SimpleORM.PropertySetterGenerator
 			bool createNamespace)
 		{
 			//Method alredy exists
-			if (extractInfo.FillMethod.ContainsKey(generatorSourceType))
+			if (extractInfo.FillMethodInfo.ContainsKey(generatorSourceType))
 				return extractInfo;
 
 			WriteDebugCreate(extractInfo, extractLevel, generatorSourceType);
@@ -86,7 +86,7 @@ namespace SimpleORM.PropertySetterGenerator
 			MethodBuilder methodBuilder = GenerateSetterMethodDefinition(
 				extractInfo.TargetType, typeBuilder, methodGenerator.DataSourceType);
 
-			extractInfo.FillMethod[methodGenerator.DataSourceType] = methodBuilder;
+			extractInfo.FillMethodInfo[methodGenerator.DataSourceType] = methodBuilder;
 			extractInfo.MethodIndex[methodGenerator.DataSourceType] = _MethodIndex++;
 
 			ILGenerator ilGen = methodBuilder.GetILGenerator();
@@ -107,8 +107,11 @@ namespace SimpleORM.PropertySetterGenerator
 			GenerateSetterMethod(ilGen, methodGenerator, extractInfo, dtSource, extractLevel);
 
 			Type type = typeBuilder.CreateType();
+			var fillMethodInfo = type.GetMethod("SetProps_" + extractInfo.TargetType);
+
+			extractInfo.FillMethodInfo[methodGenerator.DataSourceType] = fillMethodInfo;
 			extractInfo.FillMethod[methodGenerator.DataSourceType] =
-				type.GetMethod("SetProps_" + extractInfo.TargetType);
+				(FillMethodDef)Delegate.CreateDelegate(typeof(FillMethodDef), null, fillMethodInfo);
 
 			WriteDebugDone(extractInfo, extractLevel);
 
@@ -180,7 +183,7 @@ namespace SimpleORM.PropertySetterGenerator
 					ilGen,
 					rei.Member as PropertyInfo,
 					rei.RelatedExtractInfo.TargetType,
-					rei.RelatedExtractInfo.FillMethod[methodGenerator.DataSourceType],
+					rei.RelatedExtractInfo.FillMethodInfo[methodGenerator.DataSourceType],
 					rei.RelatedExtractInfo.MethodIndex[methodGenerator.DataSourceType]
 					);
 			}
@@ -232,8 +235,10 @@ namespace SimpleORM.PropertySetterGenerator
 				CallingConventions.Standard, 
 				typeof(bool),
 				new Type[] { 
-					targetClassType, 
-					dataSourceType, 
+					typeof(object),
+					//targetClassType, 
+					typeof(object),
+					//dataSourceType, 
 					typeof(DataMapper),
 					typeof(List<List<int>>), 
 					typeof(int).MakeByRefType(),

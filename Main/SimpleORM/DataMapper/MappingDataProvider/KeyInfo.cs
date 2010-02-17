@@ -18,8 +18,8 @@ namespace SimpleORM
 		protected List<string>	_ChildColumns;
 		protected List<List<int>> _ParentColumnIndexes;
 		protected List<List<int>> _ChildColumnIndexes;
-		protected MethodInfo	_ParentKeyExtractMethod;
-		protected MethodInfo	_ChildKeyExtractMethod;
+		protected FillMethodDef	_ParentKeyExtractMethod;
+		protected FillMethodDef _ChildKeyExtractMethod;
 		protected RefInfo		_RefTable;
 
 
@@ -107,12 +107,12 @@ namespace SimpleORM
 		}
 
 
-		public MethodInfo GetParentKeyExtractorMethod()
+		public FillMethodDef GetParentKeyExtractorMethod()
 		{
 			return _ParentKeyExtractMethod;
 		}
 
-		public MethodInfo GetChildKeyExtractorMethod()
+		public FillMethodDef GetChildKeyExtractorMethod()
 		{
 			return _ChildKeyExtractMethod;
 		}

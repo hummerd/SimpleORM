@@ -7,6 +7,8 @@ using SimpleORM.Exception;
 
 namespace SimpleORM
 {
+	public delegate bool FillMethodDef(object obj, object src, DataMapper mapper, List<List<int>> columns, ref int columnsIx, object[] created);
+
 	/// <summary>
 	/// Class that represents information about mapping TargetType with SchemeId.
 	/// Also class contains references to generated fill methods (FillMethod dictionary).
@@ -16,7 +18,8 @@ namespace SimpleORM
 		protected MethodInfo					_LinkMethod;
 		protected Type							_TargetType;
 		protected int							_SchemeId;
-		protected Dictionary<Type, MethodInfo>	_FillMethod;
+		protected Dictionary<Type, MethodInfo>	_FillMethodInfo;
+		protected Dictionary<Type, FillMethodDef> _FillMethod;
 		protected Dictionary<Type, int>			_MethodIndex;
 		protected List<MemberExtractInfo>		_PropColumns;
 		protected List<RelationExtractInfo>		_SubTypes;
@@ -31,7 +34,8 @@ namespace SimpleORM
 		{
 			_TargetType = targetType;
 			_SchemeId = schemeId;
-			_FillMethod = new Dictionary<Type, MethodInfo>();
+			_FillMethodInfo = new Dictionary<Type, MethodInfo>();
+			_FillMethod = new Dictionary<Type, FillMethodDef>();
 			_MethodIndex = new Dictionary<Type, int>();
 			_PropColumns = new List<MemberExtractInfo>();
 			_RelationsFromParent = new List<RelationExtractInfo>();
@@ -76,7 +80,12 @@ namespace SimpleORM
 			}
 		}
 
-		public Dictionary<Type, MethodInfo> FillMethod
+		public Dictionary<Type, MethodInfo> FillMethodInfo
+		{
+			get { return _FillMethodInfo; }
+		}
+
+		public Dictionary<Type, FillMethodDef> FillMethod
 		{
 			get { return _FillMethod; }
 		}

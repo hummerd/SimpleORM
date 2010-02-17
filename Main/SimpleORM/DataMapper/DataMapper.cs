@@ -766,7 +766,7 @@ namespace SimpleORM
 				throw new InvalidOperationException("Can not fill object without mapping definition.");
 
 			DataTable schemeTable = null;
-			MethodInfo method = null;
+			FillMethodDef method = null;
 			extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method);
 
 			while (reader.Read())
@@ -825,7 +825,7 @@ namespace SimpleORM
 				throw new InvalidOperationException("Can not fill object without mapping definition.");
 
 			DataTable schemeTable = null;
-			MethodInfo method = null;
+			FillMethodDef method = null;
 			extractInfo.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out method);
 
 			while (reader.Read())
@@ -903,7 +903,7 @@ namespace SimpleORM
 					for (int i = 0; i < eiCount; i++)
 					{
 						ExtractInfo currentEI = assosiatedEI[i];
-						MethodInfo extractMethod = null;
+						FillMethodDef extractMethod = null;
 						currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
 
 						if (extractMethod == null)
@@ -1005,7 +1005,7 @@ namespace SimpleORM
 			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
 			IList objectList,
-			MethodInfo method,
+			FillMethodDef method,
 			ObjectFilter<TObject> filter
 			)
 		{
@@ -1068,7 +1068,7 @@ namespace SimpleORM
 					for (int i = 0; i < eiCount; i++)
 					{
 						ExtractInfo currentEI = assosiatedEI[i];
-						MethodInfo extractMethod = null;
+						FillMethodDef extractMethod = null;
 						currentEI.FillMethod.TryGetValue(DataReaderPSG.TypeOfDataSource, out extractMethod);
 
 						if (extractMethod == null)
@@ -1161,7 +1161,7 @@ namespace SimpleORM
 			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
 			IList objectList,
-			MethodInfo method,
+			FillMethodDef method,
 			ObjectFilter filter)
 		{
 			pkObjects = new KeyObjectIndex(objectType);
@@ -1190,7 +1190,7 @@ namespace SimpleORM
 			out KeyObjectIndex pkObjects,
 			out KeyObjectIndex fkObjects,
 			List<List<int>> columnIndexes,
-			MethodInfo method
+			FillMethodDef method
 			)
 		{
 			pkObjects = new KeyObjectIndex(objectType);
@@ -1357,7 +1357,7 @@ namespace SimpleORM
 			//    throw new ArgumentException("Cannot fill object of unknown type.", "objectType");
 
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(typeof(TObject), schemeId);
-			MethodInfo extractMethod = null;
+			FillMethodDef extractMethod = null;
 			extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod);
 
 			List<List<int>> columnIndexes = null;
@@ -1433,7 +1433,7 @@ namespace SimpleORM
 				throw new ArgumentException("Cannot fill object of unknown type.", "objectType");
 
 			ExtractInfo extractInfo = _DMCodeGenerator.CreateExtractInfo(objectType, schemeId);
-			MethodInfo extractMethod = null;
+			FillMethodDef extractMethod = null;
 			extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod);
 
 			List<List<int>> columnIndexes = null; 
@@ -1507,7 +1507,7 @@ namespace SimpleORM
 				DataTablePSG.TypeOfDataSource
 				);
 
-			MethodInfo extractMethod;
+			FillMethodDef extractMethod;
 			if (extractInfo == null || !extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod))
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
@@ -1543,7 +1543,7 @@ namespace SimpleORM
 				DataTablePSG.TypeOfDataSource
 				);
 
-			MethodInfo extractMethod;
+			FillMethodDef extractMethod;
 			if (extractInfo == null || !extractInfo.FillMethod.TryGetValue(DataTablePSG.TypeOfDataSource, out extractMethod))
 				throw new DataMapperException("Can not fill object without mapping definition.");
 
@@ -1561,14 +1561,15 @@ namespace SimpleORM
 		} 
 
 		protected bool CallExtractorMethod(
-			MethodInfo extractorMethod, 
+			FillMethodDef extractorMethod, 
 			object obj, 
 			object data, 
 			List<List<int>> subColumns)
 		{
 			int clmn = 0;
 			object[] created = new object[_DMCodeGenerator.GeneratedMethodCount];
-			return (bool)extractorMethod.Invoke(null, new object[] { obj, data, this, subColumns, clmn, created });
+			return extractorMethod(obj, data, this, subColumns, ref clmn, created);
+			//return (bool)extractorMethod.Invoke(null, new object[] { obj, data, this, subColumns, clmn, created });
 		}
 
 		/// <summary>
