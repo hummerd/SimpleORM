@@ -152,7 +152,8 @@ namespace SimpleORM
 			var allEI = GetWholeChildTree();
 			for (int i = 0; i < allEI.Count; i++)
 			{
-				if (!allEI[i].RefTable.IsEmpty())
+				var refTable = allEI[i].RefTable;
+				if (refTable != null && !refTable.IsEmpty())
 					return true;
 			}
 

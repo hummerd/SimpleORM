@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SimpleORM;
 
@@ -180,6 +181,23 @@ namespace DataMapperTest
 
 
 		[TestMethod]
+		public void ReaderMultiThreadTest()
+		{
+			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\hierarchy.mapping");
+			DataMapper.Default.ClearCache();
+
+			int tc = 1000;
+			var tasks = new List<Thread>(tc);
+			for (int i = 0; i < tc; i++)
+			{
+				tasks.Add(new Thread(FillObjectListComplexReader));
+			}
+
+			tasks.ForEach(t => t.Start());
+			tasks.ForEach(t => t.Join());
+		}
+
+		[TestMethod]
 		public void ReaderRefToSelfTest()
 		{
 			DataMapper.Default.ClearCache();
@@ -294,49 +312,46 @@ namespace DataMapperTest
 			DataMapper.Default.ClearCache();
 			DataMapper.Default.GeneratedFileName = "mg.dll";
 			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\hierarchy.mapping");
+			
+			FillObjectListComplexReader();
+		}
 
+		public void FillObjectListComplexReader()
+		{	
 			List<Parent> objs = new List<Parent>();
-
 			var reader = _Hierarchy.CreateDataReader();
 
-			try
-			{
-				DataMapper.Default.FillObjectListComplex<Parent>(reader, objs);
-			}
-			finally
-			{
-				DataMapper.Default.SaveGeneratedAsm();
-			}
+			DataMapper.Default.FillObjectListComplex<Parent>(reader, objs);
 			reader.Close();
 
-			if (objs[0].Id != 1  ||
-				 objs[0].EntityType == null ||
-				 objs[0].Name.Length < 3 ||
-				 objs[0].Childs1.Count != 2 ||
-				 objs[0].Childs2.Count != 1 || //4
-				 objs[0].Childs2[0].Childs2.Count != 1
+			if (objs[0].Id != 1 ||
+				objs[0].EntityType == null ||
+				objs[0].Name.Length < 3 ||
+				objs[0].Childs1.Count != 2 ||
+				objs[0].Childs2.Count != 1 || //4
+				objs[0].Childs2[0].Childs2.Count != 1
 				)
 				Assert.Fail("HierarchyTest fails.");
 
 			if (objs[1].Id != 2 ||
-				 objs[1].EntityType == null ||
-				 objs[1].Name.Length < 3 ||
-				 objs[1].Childs1.Count != 1 ||
-				 objs[1].Childs2.Count != 2 ||//5,6
-				 objs[1].Childs2[0].Id != 5 ||
-				 objs[1].Childs2[0].EntityType == null ||
-				 objs[1].Childs2[0].Childs2.Count != 2 ||
-				 objs[1].Childs2[1].Id != 6 ||
-				 objs[1].Childs2[1].EntityType == null ||
-				 objs[1].Childs2[1].Childs2.Count != 0
+				objs[1].EntityType == null ||
+				objs[1].Name.Length < 3 ||
+				objs[1].Childs1.Count != 1 ||
+				objs[1].Childs2.Count != 2 || //5,6
+				objs[1].Childs2[0].Id != 5 ||
+				objs[1].Childs2[0].EntityType == null ||
+				objs[1].Childs2[0].Childs2.Count != 2 ||
+				objs[1].Childs2[1].Id != 6 ||
+				objs[1].Childs2[1].EntityType == null ||
+				objs[1].Childs2[1].Childs2.Count != 0
 				)
 				Assert.Fail("HierarchyTest fails.");
 
 			if (objs[2].Id != 3 ||
-				 objs[2].EntityType == null ||
-				 objs[2].Name.Length < 3 ||
-				 objs[2].Childs1.Count != 0 ||
-				 objs[2].Childs2.Count != 0
+				objs[2].EntityType == null ||
+				objs[2].Name.Length < 3 ||
+				objs[2].Childs1.Count != 0 ||
+				objs[2].Childs2.Count != 0
 				)
 				Assert.Fail("HierarchyTest fails.");
 		}

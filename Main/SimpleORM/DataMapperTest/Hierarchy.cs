@@ -29,7 +29,7 @@ namespace DataMapperTest
 		public SelfRef Self { get; set; }
 	}
 
-	[TableMap(new int[] {0})]
+	[TableMap(new [] {0})]
 	public class Node : Entity
 	{
 		[ComplexDataMap]

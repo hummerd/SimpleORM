@@ -13,17 +13,20 @@ namespace SimpleORM
 {
 	public class MappingGenerator
 	{
+		protected static readonly object _SyncRoot = new object();
+
+
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();
+		
+		protected string			_GeneratedFileName;
+		protected ModuleBuilder		_ModuleBuilder;
+		protected AssemblyBuilder	_AsmBuilder;
 
-		protected string _GeneratedFileName;
-		protected ModuleBuilder _ModuleBuilder;
-		protected AssemblyBuilder _AsmBuilder;
-
-		protected MappingProvider _MappingProvider;
-		protected DataMapperCodeGenerator _SetterMethodGenerator;
-		protected KeyClassGenerator _KeyGenerator;
-		protected LinkObjectsMethodGenerator _LinkMethodGenerator;
-		Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
+		protected MappingProvider				_MappingProvider;
+		protected DataMapperCodeGenerator		_SetterMethodGenerator;
+		protected KeyClassGenerator				_KeyGenerator;
+		protected LinkObjectsMethodGenerator	_LinkMethodGenerator;
+		protected Dictionary<Type, IPropertySetterGenerator> _SetterGenerators;
 
 
 		public MappingGenerator(Dictionary<Type, IPropertySetterGenerator> setterGenerators)
@@ -108,7 +111,7 @@ namespace SimpleORM
 
 		public ExtractInfo CreateExtractInfo(Type targetClassType, int schemeId)
 		{
-			lock (this)
+			lock (_SyncRoot)
 			{
 				return CreateExtractInfo(targetClassType, schemeId, 0);
 			}
@@ -142,7 +145,7 @@ namespace SimpleORM
 			Type generatorSourceType,
 			bool createNamespace)
 		{
-			lock (this)
+			lock (_SyncRoot)
 			{
 				CreateModule();
 				_SetterMethodGenerator.GenerateSetterMethod(extractInfo, dtSource, generatorSourceType, createNamespace);

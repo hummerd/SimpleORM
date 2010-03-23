@@ -18,17 +18,12 @@ namespace SimpleORM
 	/// </summary>
 	public class DataMapper
 	{
-		protected static DataMapper _Instance;
-
+		protected static DataMapper _Instance = new DataMapper(new StandartObjectBuilder(), null);
+		
 		public static DataMapper Default
 		{
 			get
 			{
-				if (_Instance == null)
-				{
-					_Instance = new DataMapper(new StandartObjectBuilder(), null);
-				}
-
 				return _Instance;
 			}
 		}
