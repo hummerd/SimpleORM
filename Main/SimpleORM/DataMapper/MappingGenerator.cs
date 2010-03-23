@@ -13,7 +13,7 @@ namespace SimpleORM
 {
 	public class MappingGenerator
 	{
-		protected static readonly object _SyncRoot = new object();
+		protected readonly object _SyncRoot = new object();
 
 
 		protected readonly ExtractorInfoCache _ExtractInfoCache = new ExtractorInfoCache();

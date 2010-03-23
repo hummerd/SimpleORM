@@ -186,7 +186,7 @@ namespace DataMapperTest
 			DataMapper.Default.SetConfig(@"..\..\..\DataMapperTest\hierarchy.mapping");
 			DataMapper.Default.ClearCache();
 
-			int tc = 1000;
+			int tc = 100;
 			var tasks = new List<Thread>(tc);
 			for (int i = 0; i < tc; i++)
 			{
