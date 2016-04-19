@@ -1,4 +1,4 @@
-Simple [ORM](http://en.wikipedia.org/wiki/Object-relational_mapping)
+# Simple [ORM](http://en.wikipedia.org/wiki/Object-relational_mapping)
 
 Features:
 * It uses code generation to achieve high performance (code generated in MSIL via Code.Emit ).
